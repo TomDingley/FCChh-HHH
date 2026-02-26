@@ -1,0 +1,4 @@
+[submodule "EventProducer"]
+	path = EventProducer
+	url = https://github.com/TomDingley/EventProducer.git
+	branch = fcchh_evtgen_updates
