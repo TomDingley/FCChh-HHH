@@ -1,0 +1,33 @@
+{
+  "channels": {
+
+    "hadhad_MMC": {
+      "features": [
+        "dR_h1", "dR_h2", "xwt", "aplanarity", "sphericity", "thrust",
+        "metsig_derived",
+        "RMS_dR", "RMS_mjj", "RMS_dEta",
+        "mTb_min",
+        "m_h1", "m_h2",
+        "pT_b1", "pT_b2", "pT_b3", "pT_b4",
+        "m_tautau_vis_OS", "weighted_MMC_para_perp_vispTcal", "MET",
+        "pT_tau1_tlv_LH", "pT_tau2_tlv_LH",
+        "n_jets_sel"
+       
+      ]
+    },
+    "lephad_MMC": {
+      "features": [
+        "dR_h1", "dR_h2", "xwt", "aplanarity", "sphericity", "thrust",
+        "metsig_derived",
+        "RMS_dR", "RMS_mjj", "RMS_dEta",
+        "mTb_min",
+        "m_h1", "m_h2", "dR_tautau",
+        "pT_b1", "pT_b2", "pT_b3", "pT_b4", 
+        "weighted_MMC_para_perp_vispTcal", "MET", "m_tautau_vis_OS",
+        "pT_tau1_tlv_LH", "pT_tau2_tlv_LH",
+        "n_jets_sel"
+       
+      ]
+    }
+  }
+}

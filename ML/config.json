@@ -1,0 +1,52 @@
+{
+  "channels": {
+    
+    "hadhad_MMC": {
+            "features":[
+                "dR_H1H2", "dR_H2Htau", "dR_H1Htau",
+                "sphericity", "aplanarity", "thrust",
+                "dPhi_H1H2", "dPhi_H2Htau", "dPhi_H1Htau",
+                "dEta_H1H2", "dEta_H2Htau", "dEta_H1Htau",
+                "dR_tautau",
+                "dR_h2", "dEta_h2",
+                "dR_h1", "dEta_h1",
+                "RMS_dR", "RMS_mjj", "RMS_dEta",
+                "mTb_min", "metsig_est", "xwt",
+                "pT_h1", "pT_h2", "m_h1", "m_h2",
+                "pT_b1", "pT_b2", "pT_b3", "pT_b4",
+                "m_tautau_vis_OS", "weighted_MMC_para_perp_vispTcal", "MET",
+                "pT_tau1_tlv_LH", "pT_tau2_tlv_LH",
+                "metsig_derived",
+                "n_jets_sel", "n_b_jets_medium_tauprio", "n_tau_jets_medium",
+                "dPhi_met_tautau", "m_hhh_vis", "weight_xsec",
+                "weight_k3m1_k4m1", "weight_k30_k4m2", "weight_k3m2_k40", "weight_k30_k4m1",
+                "weight_k3m1_k40", "weight_k3m2_k4m1", "weight_k3m1_k4m2", "weight_k3m0p5_k4m1",
+                "weight_k3m1p5_k4m1", "weight"
+            ]
+    },
+    
+    "lephad_MMC": {
+            "features": [
+                "dR_H1H2", "dR_H2Htau", "dR_H1Htau",
+                "sphericity", "aplanarity", "thrust",
+                "dPhi_H1H2", "dPhi_H2Htau", "dPhi_H1Htau",
+                "dEta_H1H2", "dEta_H2Htau", "dEta_H1Htau",
+                "dR_tautau",
+                "dR_h2", "dEta_h2",
+                "dR_h1", "dEta_h1",
+                "RMS_dR", "RMS_mjj", "RMS_dEta",
+                "mTb_min", "metsig_est", "xwt",
+                "pT_b1", "pT_b2", "pT_b3", "pT_b4",
+                "metsig_derived",
+                "pT_h1", "pT_h2", "m_h1", "m_h2",
+                "m_tautau_vis_OS", "weighted_MMC_para_perp_vispTcal", "MET",
+                "pT_tau1_tlv_LH", "pT_tau2_tlv_LH",
+                "n_jets_sel", "n_b_jets_medium_tauprio", "n_tau_jets_medium",
+                "dPhi_met_tautau", "m_hhh_vis", "weight_xsec",
+                "weight_k3m1_k4m1", "weight_k30_k4m2", "weight_k3m2_k40", "weight_k30_k4m1",
+                "weight_k3m1_k40", "weight_k3m2_k4m1", "weight_k3m1_k4m2", "weight_k3m0p5_k4m1",
+                "weight_k3m1p5_k4m1", "weight"
+            ]
+        }
+}
+}
