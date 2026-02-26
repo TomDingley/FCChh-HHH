@@ -8,21 +8,14 @@ End-to-end analysis repository for the FCC-hh triple-Higgs study: event generati
 
 - [Project overview](#project-overview)
 - [Repository layout](#repository-layout)
-- [Quickstart](#quickstart)
 - [Environments](#environments)
 - [Workflows](#workflows)
   - [Event generation](#event-generation)
-  - [Detector simulation / ntuples](#detector-simulation--ntuples)
+  - [FCCAnalyses](#ntuples)
   - [Post-processing](#post-processing)
   - [Machine learning](#machine-learning)
-  - [Statistical inference](#statistical-inference)
-- [Configuration](#configuration)
-- [Data management](#data-management)
-- [Reproducibility](#reproducibility)
-- [Contributing](#contributing)
-- [Citation](#citation)
-- [License](#license)
-- [Contact](#contact)
+  - [Statistical interpretation](#statistical-interpretation)
+
 
 ---
 
