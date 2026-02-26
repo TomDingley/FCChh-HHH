@@ -37,8 +37,6 @@ End-to-end analysis repository for the FCC-hh triple-Higgs study: event generati
 
 ## Repository layout
 
-> Update this to match your final structure.
-
 ```text
 FCChh-HHH/
   README.md
