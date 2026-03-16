@@ -1,5 +1,6 @@
 from pathlib import Path
 import argparse
+from contextlib import ExitStack
 import uproot
 import numpy as np
 from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS, LUMINOSITY_PB
@@ -11,7 +12,7 @@ from aesthetics import LABEL_MAP, channel_labels
 from plotting.histograms import plot_1d_histograms, overlay_histogram, compare_histogram
 from plotting.shape_cutflow import plot_shape_cutflow
 from plotting.heatmaps import plot_heatmaps, plot_hist2d_heatmaps
-from plotting.stack import normalised_overlay_plot, stack_plot_weight, normalised_overlay_plot_chan, normalised_slice_plot, raw_overlay_plot
+from plotting.stack import normalised_overlay_plot, stack_plot_weight, normalised_overlay_plot_chan, normalised_slice_plot, raw_overlay_plot, normalised_total_background_plot
 from plotting.fit_shapes import fit_signal_mass_shape
 from plotting.signal_reweighter import compare_signal_eft_points, heatmap_signal_eft_efficiency, heatmap_signal_eft_efficiency_LR, heatmap_signal_eft_mean,  heatmap_signal_pairing_mean, heatmap_signal_eft_mean_with_slices, heatmap_signal_eft_efficiency_presel, heatmap_signal_eft_xsm_after_selection
 from fitting.fit import scan_k3k4_limits, plot_k3k4_limit_contours, plot_signal_yield_morphing_grid, plot_k3k4_limit_contours_comparison
@@ -72,10 +73,10 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
 
 def cli():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root-dir", default="/data/atlas/users/dingleyt/FCChh/FCCAnalyses/newprod_4M_3/run/scored_root")
-    ap.add_argument("--outdir", default="84TeV/bdtscore_feat_splitbkg")
+    ap.add_argument("--root-dir", default="/data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted")
+    ap.add_argument("--outdir", default="84TeV/test_run")
     ap.add_argument("--comment", default="")
-    ap.add_argument("--channel", default="Combined", choices=["LepHad", "HadHad", "Combined"])
+    ap.add_argument("--channel", default="HadHad", choices=["LepHad", "HadHad", "Combined"])
     ap.add_argument("--test", action='store_true')
     ap.add_argument("--signal", default="mgp8_pp_hhh_84TeV")
     ap.add_argument("--compare_dir", default="")
@@ -83,6 +84,7 @@ def cli():
     ap.add_argument("--shape-var", default="m_hhh_vis")
     ap.add_argument("--shape-outdir", default="")
     ap.add_argument("--shape-no-normalize", action="store_true")
+    ap.add_argument("--n-slices", type=int, default=4, help="Number of quantile slices for normalised slice plots.")
     args = ap.parse_args()
 
     root = Path(args.root_dir).expanduser().resolve()
@@ -105,7 +107,7 @@ def cli():
     channels = ["Combined", "HadHad_2BB", "HadHad", "HadHad_boosted", "HadHad_old", "HadHad_resolved", "HadHad_1BB", "LepHad", "LepHad_resolved", "LepHad_1BB", "LepHad_2BB"]
     channels= ["HadHad_old", "HadHad_old_dRCuts", "HadHad_old_squareCuts"]
     channels= ["HadHad_resolved", "HadHad_resolved_dRCuts", "HadHad_resolved_squareCuts"]
-    channels = ["Total"]
+    channels = ["HadHad", "LepHad"]
     signal = args.signal
     if isTest:
         files = {"mgp8_pp_hhh_84TeV": "/data/atlas/users/dingleyt/FCChh/FCCAnalyses/output.root"}
@@ -122,10 +124,7 @@ def cli():
         leaves = [k for k in f_sig["events"].keys() if k not in SKIP_VARS]
     vars_to_stack = [v for v in leaves if v in LABEL_MAP]
     vars_to_slice = [
-        ("angle3D_vis_mis_tau1", "pvis_truthHadronicTaus_1"),
-        ("angle3D_vis_mis_tau2", "pvis_truthHadronicTaus_2"),
-        ("x_tauE_1", "pvis_truthHadronicTaus_1"),
-        ("x_tauE_2", "pvis_truthHadronicTaus_2"),
+        ("m_h1", "pT_h1"),
         ("weighted_MMC_para_perp_vispTcal", "pT_tau1_tlv_LH"),
         ("weighted_MMC_para_perp_vispTcal", "MET"),
         ("weighted_MMC_para_perp_vispTcal", "m_tautau_vis_OS"),
@@ -161,34 +160,34 @@ def cli():
         for proc, fpath in files.items():
             print("[*]", proc)
             
-            #process_file(proc, fpath, out_base / proc, comment, compDir, vars_to_stack, chan, shape_var, shape_outdir, shape_normalize)
+            process_file(proc, fpath, out_base / proc, comment, compDir, vars_to_stack, chan, shape_var, shape_outdir, shape_normalize)
             
         doPlots = True
-        doWeight = False
+        doWeight = True
+        if chan != "Total":
+
+            # write weighted cutflow
+            csv_path, tex_path, pdf_path = write_cutflow_weighted_summary(
+                files,
+                outdir=out_base / chan,
+                channel=chan,                  
+                mode="chain",                 
+                tree_name="events",
+                weight_branch="weight_xsec",
+                lumi=None,                     
+                signal_sub=None,          
+                ttbb_sub="ttbb",
+                rel_sys_b=0.0,
+                process_label_map=None,    
+                step_size="200 MB",            
+            )
         if doPlots:
             
             selection = SELECTION[chan]
-            #write_cutflow_weighted_summary(files, out_base, chan)
-            if chan != "Total":
-
-                # write weighted cutflow
-                csv_path, tex_path, pdf_path = write_cutflow_weighted_summary(
-                    files,
-                    outdir=out_base / chan,
-                    channel=chan,                  
-                    mode="chain",                 
-                    tree_name="events",
-                    weight_branch="weight_xsec",
-                    lumi=None,                     
-                    signal_sub=None,          
-                    ttbb_sub="ttbb",
-                    rel_sys_b=0.0,
-                    process_label_map=None,    
-                    step_size="200 MB",            
-                )
+           
                 
-            k3_points = np.linspace(-1, 5, 100)
-            k4_points = np.linspace(-10, 30, 100)
+            k3_points = np.linspace(-2.5, 6, 100)
+            k4_points = np.linspace(-15, 30, 100)
             xsm_maps = True
             if xsm_maps:
                 heatmap_signal_eft_xsm_after_selection(
@@ -277,24 +276,63 @@ def cli():
                             comment=comment,
                             channel=chan
                         )
-            
-                
-
-            for var, slicer in vars_to_slice:
-                normalised_slice_plot(var, slicer, files, out_base, chan, k3=1, k4=1, comment=comment)
-            for var in vars_to_stack:
-                stack_plot_weight(var, files, out_base, chan, comment)
-                #raw_overlay_plot(var, files, out_base, chan, k3 = 1, k4 = 1, comment=comment)
-                normalised_overlay_plot(var, files, out_base, chan, k3 = 1, k4 = 1, comment=comment)
-                if doWeight:
-                    compare_signal_eft_points(
-                        var=var,
-                        files=files,
-                        outdir=out_base,
-                        k3k4_points=[(1, 1), (5, 1), (1, 20)],
+            doSlice = False
+            if doSlice:    
+                for var, slicer in vars_to_slice:
+                    normalised_slice_plot(
+                        var,
+                        slicer,
+                        files,
+                        out_base,
+                        chan,
+                        k3=1,
+                        k4=1,
                         comment=comment,
-                        channel=chan
+                        n_slices=args.n_slices,
                     )
+            with ExitStack() as stack:
+                open_trees = {}
+                selection_masks = {}
+                for proc, fpath in files.items():
+                    f = stack.enter_context(uproot.open(fpath))
+                    tree = f["events"]
+                    open_trees[proc] = tree
+                    selection_masks[proc] = build_mask_from_selection(tree, selection)
+
+                for var in vars_to_stack:
+                    stack_plot_weight(var, files, out_base, chan, comment, trees=open_trees, masks=selection_masks)
+                    #raw_overlay_plot(var, files, out_base, chan, k3 = 1, k4 = 1, comment=comment)
+                    normalised_overlay_plot(
+                        var,
+                        files,
+                        out_base,
+                        chan,
+                        k3=1,
+                        k4=1,
+                        comment=comment,
+                        trees=open_trees,
+                        masks=selection_masks,
+                    )
+                    normalised_total_background_plot(
+                        var,
+                        files,
+                        out_base,
+                        chan,
+                        k3=1,
+                        k4=1,
+                        comment=comment,
+                        trees=open_trees,
+                        masks=selection_masks,
+                    )
+                    if doWeight:
+                        compare_signal_eft_points(
+                            var=var,
+                            files=files,
+                            outdir=out_base,
+                            k3k4_points=[(1, 1), (5, 1), (1, 20)],
+                            comment=comment,
+                            channel=chan
+                        )
                     
         fit_vars = ["m_tautau_vis_OS","weighted_MMC_para_perp_vispTcal", "metRatio_mode_vispTcal"]
         #scan_k3k4_limits("m_hhh_vis_LR", files, out_base, k3_range=(-7.5, 10), k4_range=(-75, 75), nsteps=10, channel=chan)

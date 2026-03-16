@@ -31,6 +31,10 @@ End-to-end analysis repository for the FCC-hh triple-Higgs study: event generati
 - Machine learning training / validation / application
 - Statistical modelling and limit/contour extraction, both with yields-approximation (in Kinematics) and TRExFitter
 
+There are READMEs in each directory with instructions!
+If you're using the repository with NTuples already generated, all you need are the kinematics, ML and TRExFitter directories.
+
+
 **Status:** under active development, please contact thomas.dingley@cern.ch for more information / to report bugs and new features!
 
 ---

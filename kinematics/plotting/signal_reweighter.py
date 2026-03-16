@@ -118,9 +118,11 @@ def compare_signal_eft_points(
                 with np.errstate(divide='ignore', invalid='ignore'):
                     ratio = np.divide(step_y, sm_hist, out=np.ones_like(step_y), where=sm_hist != 0)
                 ax_ratio.step(step_x, ratio, where="post", label=label)
-
+    ymax = np.max(step_y)
+    
     ax_main.set_ylabel("Normalised events", loc="top")
-    ax_main.set_ylim(bottom=0.0001, top=0.125)
+    ylim_max = max(0.25, ymax) * 1.25
+    ax_main.set_ylim(bottom=0.0001, top=ylim_max)
     ax_main.set_xlim(xmin, xmax)
     ax_main.legend(frameon=False, fontsize=10)
     ax_main.tick_params(labelbottom=False)
@@ -313,6 +315,7 @@ def heatmap_signal_eft_xsm_after_selection(
     vmin: float | None = None,
     vmax: float | None = None,
     contour_levels: list[float] | None = None,
+    make_before_after_ratio: bool = True,
 ) -> None:
     """
     Plot xSM (selected) across the (k3, k4) plane:
@@ -320,6 +323,9 @@ def heatmap_signal_eft_xsm_after_selection(
       xSM(k3, k4) = sigma_sel(k3, k4) / sigma_sel(SM)
 
     using the full SELECTION[channel] unless overridden.
+    Optionally also write a ratio heatmap:
+
+      ratio(k3, k4) = xSM(selected) / xSM(no selection)
     """
     signal_key = signal_key or SIGNAL
     fp = files.get(signal_key)
@@ -328,60 +334,82 @@ def heatmap_signal_eft_xsm_after_selection(
 
     selection = SELECTION[channel] if selection_override is None else selection_override
 
+    sm_vec = basis_funcs(1.0, 1.0)
+
+    def _build_moments_scaled_sum(tree, mask, tag: str) -> np.ndarray | None:
+        mask = np.asarray(mask, dtype=bool)
+        weight_dict = {k: tree[k].array(library="np")[mask] for k in BASIS_KEYS}
+        w_xsec = tree[weight_branch].array(library="np")[mask]
+
+        lengths = [len(w_xsec)] + [len(arr) for arr in weight_dict.values()]
+        min_len = min(lengths) if lengths else 0
+        if min_len == 0:
+            print(f"[!] No events found for {tag} in {fp}.")
+            return None
+        if any(l != min_len for l in lengths):
+            print(f"[!] Length mismatch in {tag} weights; trimming to {min_len} entries.")
+            w_xsec = w_xsec[:min_len]
+            for key in weight_dict:
+                weight_dict[key] = weight_dict[key][:min_len]
+
+        finite = np.isfinite(w_xsec)
+        for arr in weight_dict.values():
+            finite &= np.isfinite(arr)
+        if not np.any(finite):
+            print(f"[!] No finite-weight events for {tag} in {fp}.")
+            return None
+
+        w_xsec = w_xsec[finite]
+        for key in weight_dict:
+            weight_dict[key] = weight_dict[key][finite]
+
+        moments = build_moments(weight_dict)
+        denom = moments @ sm_vec
+        scale = np.divide(
+            w_xsec,
+            denom,
+            out=np.zeros_like(w_xsec, dtype=float),
+            where=denom != 0,
+        )
+        return np.sum(moments * scale[:, None], axis=0)
+
     with uproot.open(fp) as f:
         if tree_name not in f:
             raise KeyError(f"Tree '{tree_name}' not found in {fp}")
         tree = f[tree_name]
 
+        n_entries = tree.num_entries
+        mask_all = np.ones(n_entries, dtype=bool)
         if selection:
-            mask = build_mask_from_selection(tree, selection)
+            mask_sel = build_mask_from_selection(tree, selection)
         else:
-            mask = np.ones(len(tree), dtype=bool)
+            mask_sel = mask_all
 
-        weight_dict = {k: tree[k].array(library="np")[mask] for k in BASIS_KEYS}
-        w_xsec = tree[weight_branch].array(library="np")[mask]
+        moments_scaled_sum_sel = _build_moments_scaled_sum(
+            tree, mask_sel, f"{channel} selection"
+        )
+        if moments_scaled_sum_sel is None:
+            return
 
-    lengths = [len(w_xsec)] + [len(arr) for arr in weight_dict.values()]
-    min_len = min(lengths) if lengths else 0
-    if min_len == 0:
-        print(f"[!] No events found for {channel} selection in {fp}.")
-        return
-    if any(l != min_len for l in lengths):
-        print(f"[!] Length mismatch in weights; trimming to {min_len} entries.")
-        w_xsec = w_xsec[:min_len]
-        for key in weight_dict:
-            weight_dict[key] = weight_dict[key][:min_len]
+        moments_scaled_sum_all = None
+        if make_before_after_ratio:
+            moments_scaled_sum_all = _build_moments_scaled_sum(tree, mask_all, "no selection")
+            if moments_scaled_sum_all is None:
+                return
 
-    finite = np.isfinite(w_xsec)
-    for arr in weight_dict.values():
-        finite &= np.isfinite(arr)
-    if not np.any(finite):
-        print(f"[!] No finite-weight events for {channel} in {fp}.")
-        return
-
-    w_xsec = w_xsec[finite]
-    for key in weight_dict:
-        weight_dict[key] = weight_dict[key][finite]
-
-    moments = build_moments(weight_dict)
-    sm_vec = basis_funcs(1.0, 1.0)
-    denom = moments @ sm_vec
-    scale = np.divide(w_xsec, denom, out=np.zeros_like(w_xsec, dtype=float), where=denom != 0)
-    moments_scaled_sum = np.sum(moments * scale[:, None], axis=0)
-
-    sm_yield = float(moments_scaled_sum @ sm_vec)
-    if sm_yield <= 0.0:
+    sm_yield_sel = float(moments_scaled_sum_sel @ sm_vec)
+    if sm_yield_sel <= 0.0:
         print(f"[!] SM selected yield is zero for {channel}; cannot form xSM.")
         return
 
-    heatmap = np.full((len(k3_grid), len(k4_grid)), np.nan, dtype=float)
+    xsm_selected = np.full((len(k3_grid), len(k4_grid)), np.nan, dtype=float)
     for i, k3 in enumerate(k3_grid):
         for j, k4 in enumerate(k4_grid):
             target_vec = basis_funcs(float(k3), float(k4))
-            yield_k = float(moments_scaled_sum @ target_vec)
-            heatmap[i, j] = yield_k / sm_yield
+            yield_k_sel = float(moments_scaled_sum_sel @ target_vec)
+            xsm_selected[i, j] = yield_k_sel / sm_yield_sel
 
-    finite_vals = heatmap[np.isfinite(heatmap)]
+    finite_vals = xsm_selected[np.isfinite(xsm_selected)]
     if finite_vals.size:
         auto_vmin = float(np.nanmin(finite_vals))
         auto_vmax = float(np.nanmax(finite_vals))
@@ -393,7 +421,7 @@ def heatmap_signal_eft_xsm_after_selection(
 
     fig, ax = plt.subplots(figsize=(6.2, 5.2))
     im = ax.imshow(
-        heatmap.T,
+        xsm_selected.T,
         origin="lower",
         extent=(k3_grid.min(), k3_grid.max(), k4_grid.min(), k4_grid.max()),
         aspect="auto",
@@ -405,7 +433,7 @@ def heatmap_signal_eft_xsm_after_selection(
         cs = ax.contour(
             K3,
             K4,
-            heatmap,
+            xsm_selected,
             levels=contour_levels,
             colors="white",
             linewidths=1.0,
@@ -430,6 +458,86 @@ def heatmap_signal_eft_xsm_after_selection(
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print(f"[✓] xSM heatmap saved to {out}")
+
+    if not make_before_after_ratio or moments_scaled_sum_all is None:
+        return
+
+    sm_yield_all = float(moments_scaled_sum_all @ sm_vec)
+    if sm_yield_all <= 0.0:
+        print("[!] SM no-selection yield is zero; cannot form before/after xSM ratio.")
+        return
+
+    xsm_nosel = np.full((len(k3_grid), len(k4_grid)), np.nan, dtype=float)
+    for i, k3 in enumerate(k3_grid):
+        for j, k4 in enumerate(k4_grid):
+            target_vec = basis_funcs(float(k3), float(k4))
+            yield_k_all = float(moments_scaled_sum_all @ target_vec)
+            xsm_nosel[i, j] = yield_k_all / sm_yield_all
+
+    ratio_heatmap = np.divide(
+        xsm_selected,
+        xsm_nosel,
+        out=np.full_like(xsm_selected, np.nan),
+        where=xsm_nosel != 0.0,
+    )
+
+    ratio_vals = ratio_heatmap[np.isfinite(ratio_heatmap)]
+    if ratio_vals.size == 0:
+        print("[!] No finite entries for before/after xSM ratio heatmap.")
+        return
+
+    ratio_min = float(np.nanmin(ratio_vals))
+    ratio_max = float(np.nanmax(ratio_vals))
+    if ratio_min < 1.0 < ratio_max and ratio_min != ratio_max:
+        ratio_norm = TwoSlopeNorm(vmin=ratio_min, vcenter=1.0, vmax=ratio_max)
+        ratio_cmap = "RdBu_r"
+    elif ratio_min == ratio_max:
+        ratio_norm = None
+        ratio_cmap = "magma"
+    else:
+        ratio_norm = Normalize(vmin=ratio_min, vmax=ratio_max)
+        ratio_cmap = "magma"
+
+    fig, ax = plt.subplots(figsize=(6.2, 5.2))
+    im = ax.imshow(
+        ratio_heatmap.T,
+        origin="lower",
+        extent=(k3_grid.min(), k3_grid.max(), k4_grid.min(), k4_grid.max()),
+        aspect="auto",
+        cmap=ratio_cmap,
+        norm=ratio_norm,
+    )
+    ratio_levels = [0.8, 0.9, 1.0, 1.1]
+    levels_in_range = [lvl for lvl in ratio_levels if ratio_min <= lvl <= ratio_max]
+    if levels_in_range:
+        K3, K4 = np.meshgrid(k3_grid, k4_grid, indexing="ij")
+        ratio_masked = np.ma.masked_invalid(ratio_heatmap)
+        cs = ax.contour(
+            K3,
+            K4,
+            ratio_masked,
+            levels=levels_in_range,
+            colors="black",
+            linewidths=1.0,
+        )
+        ax.clabel(cs, fmt="%g", fontsize=8, inline=True, colors="black")
+
+    banner_heatmaps(ax, comment)
+
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label("xSM(selected) / xSM(no selection)", loc="top")
+
+    ax.set_xlabel(r"$\kappa_3$", loc="right")
+    ax.set_ylabel(r"$\kappa_4$", loc="top")
+
+    ratio_pdf = outdir / f"signal_EFT_xsm/xsm_k3k4_before_after_ratio_{channel}.pdf"
+    ratio_png = outdir / f"signal_EFT_xsm/xsm_k3k4_before_after_ratio_{channel}.png"
+    ratio_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(ratio_pdf, bbox_inches="tight")
+    fig.savefig(ratio_png, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[✓] xSM before/after ratio heatmap saved to {ratio_png}")
     
 def heatmap_signal_eft_efficiency_LR(
     files: dict[str, Path],
