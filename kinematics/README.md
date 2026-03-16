@@ -73,7 +73,7 @@ This standalone script is the clearest way to make cut-by-cut shape plots:
 python plotting/shape_cutflow.py   --root /path/to/scored_root/mgp8_pp_hhh_84TeV.root   --var m_hhh_vis   --channel HadHad   --outdir outputs/shape_cutflow
 ```
 
-### Optimize the MLP cut and scan $\kappa_3$, $\kappa_4$ points
+### Optimize the NN score cut and perform some binned fit studies in Asimov stat-only mode
 
 ```bash
 python fitting/optimise_mlp_significance.py   --root-dir /path/to/scored_root   --outdir outputs/fit   --channel HadHad   --signal mgp8_pp_hhh_84TeV   --var m_hhh_vis
