@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import json
 import argparse
@@ -16,10 +15,26 @@ from torch.utils.data import Dataset, DataLoader
 
 from typing import Optional
 
+"""
+ brief description of training script:
+ 
+ Inputs: ROOT files from preprocessing.py output, with preselection applied. Either lephad / hadhad.
+ 
+ Training: 
+ - Trains one MLP per channel, with various optimisation metrics included within Optuna hyperparameter-optimisation
+ - For resutls included in thesis we have 50 iterations of hyperparameter optimisation, 
+   but generally you should be able to get away with around 10 (or even fewer), the AUC is quite stable.
+ - The networks are implemented using PyTorch, and the training set is weighted using stratified k-folds (default 2)
+   Stratified folds ensure the networks learn proportionally to the relative background composition 
+ -  
+   
+ 
+"""
+
 # ------------------------------
-# I/O helpers (unchanged)
+# helpers
 # ------------------------------
-def load_channel_dataframe(indir: Path, channel: str, features, signal_key: str):
+def load_channel_arrays(indir: Path, channel: str, features, signal_key: str):
     files = sorted([p for p in Path(indir).glob(f"*_{channel}.root") if p.is_file()])
     if not files:
         raise FileNotFoundError(f"No ROOT files like '*_{channel}.root' in {indir}")
@@ -27,22 +42,30 @@ def load_channel_dataframe(indir: Path, channel: str, features, signal_key: str)
     X_list, y_list, proc_list, w_list = [], [], [], []
 
     for fpath in files:
+        # strip path of the channel name, retain only the process
         proc = fpath.stem.replace(f"_{channel}", "")
         with uproot.open(fpath) as f:
             tree = f["events"]
-
+            
+            # make awkward arrays of all features used for training (as defined in train_features.json)
             cols = [ak.to_numpy(tree[v].array(library="ak")) for v in features]
+            
+            # stack 1D arrays together to make large 2D array of (features x entries)
             X_list.append(np.column_stack(cols))
 
+            # if we have xsec weights, we should definitely use them
             if "weight_xsec" in tree.keys():
                 w = ak.to_numpy(tree["weight_xsec"].array(library="ak"))
             else:
+                print("[WARNING]: Please beware that you're training without weights included :(((")
                 w = np.ones(tree.num_entries, dtype=float)
             w_list.append(w)
 
+            # make class 'truth' outcomes, 1 for signal and 0 for background
             y = np.ones(tree.num_entries, dtype=int) if signal_key in proc else np.zeros(tree.num_entries, dtype=int)
             y_list.append(y)
-
+            
+            # process labels per-event
             proc_list.append(np.array([proc] * tree.num_entries, dtype=object))
 
     X = np.concatenate(X_list, axis=0)
@@ -53,7 +76,9 @@ def load_channel_dataframe(indir: Path, channel: str, features, signal_key: str)
 
 
 def normalise_per_process_weights(proc_names: np.ndarray, w_xsec: np.ndarray) -> np.ndarray:
-    w = w_xsec.astype(float).copy()
+    # Use |weight| for ML training, had to be introduced after including POWHEG NLO HH sample with -ve weights
+    w = np.abs(w_xsec.astype(float))
+    w = np.where(np.isfinite(w), w, 0.0)
     for p in np.unique(proc_names):
         mask = (proc_names == p)
         S = float(w[mask].sum())
@@ -65,23 +90,41 @@ def normalise_per_process_weights(proc_names: np.ndarray, w_xsec: np.ndarray) ->
 def weighted_stratified_kfold_indices(y: np.ndarray,
                                       proc: np.ndarray,
                                       w: np.ndarray,
-                                      n_splits: int = 5,
+                                      n_splits: int = 2,
                                       random_state: int = 42):
+    # Build k-fold train/test splits while keeping each fold as representative
+    # as possible in terms of class label and process composition
     rng = np.random.default_rng(random_state)
+    
+    # Global event index array. The folds below are stored as event indices into
+    # the concatenated X/y/proc/w arrays returned by load_channel_arrays.
     n = len(y)
     idx_all = np.arange(n)
 
+    # Each stratum is one class/process combination
+    # This prevents a fold from accidentally receiving all/none of a given
+    # process just because of a random split.
     strata = defaultdict(list)
     for i, (yi, pi) in enumerate(zip(y, proc)):
         strata[(int(yi), pi)].append(i)
 
+    # Work out the total training weight carried by each class, then set the
+    # target class weight per fold. In this original script, w is w_norm, i.e.
+    # per-process-normalized |weight_xsec| rather than physicial yield - this is a BUG :(
+    # TODO: implement preserved proper physical weights
     classes = np.unique(y)
     class_weight_total = {c: float(w[y == c].sum()) for c in classes}
     target_per_fold = {c: class_weight_total[c] / n_splits for c in class_weight_total}
 
+
+    # Tracking logic: keep track of the class-weight sum already assigned to each fold. This is used to
+    # place the next event into the fold that is currently most deficient for that event's class (sig/bkg).
     fold_class_w = [{c: 0.0 for c in class_weight_total} for _ in range(n_splits)]
     folds = [[] for _ in range(n_splits)]
 
+    # Loop over each process within each class. Events in the stratum are
+    # shuffled, then assigned one by one to the fold with the largest remaining
+    # class-weight deficit.
     for (c, p), idxs in strata.items():
         idxs = np.array(idxs)
         rng.shuffle(idxs)
@@ -91,6 +134,8 @@ def weighted_stratified_kfold_indices(y: np.ndarray,
             folds[k_best].append(i)
             fold_class_w[k_best][c] += w[i]
 
+    # Convert each test fold into the usual (train_idx, test_idx) pair expected
+    # downstream by Optuna tuning and final fold training.
     splits = []
     for k in range(n_splits):
         test_idx = np.array(sorted(folds[k]))
@@ -164,20 +209,44 @@ class ArrayDataset(Dataset):
         return self.X[i], self.y[i]
 
 
+def make_activation_layer(name: str) -> nn.Module:
+    key = str(name).strip().lower()
+    factories = {
+        "relu": nn.ReLU,
+        "tanh": nn.Tanh,
+        "leaky_relu": lambda: nn.LeakyReLU(negative_slope=0.01),
+        "elu": nn.ELU,
+        "gelu": nn.GELU
+    }
+    return factories[key]()
+
+
+def supported_activation_names():
+    names = ["relu", "leaky_relu", "elu", "tanh", "gelu"]
+    return names
+
+
+# now we can start to build the MLP
 class MLP(nn.Module):
+    # initialisation:
     def __init__(self, n_in: int, hidden=(128, 64), activation="relu", dropout=0.0):
         super().__init__()
-        act = nn.ReLU if activation == "relu" else nn.Tanh
-
+        # layers of the MLP
         layers = []
+        # previous iteration of the MLP
         prev = n_in
+        # since we have a optuna hyperparameter of number of layers, we can build it with a for-loop each time
         for h in hidden:
+            # hidden layers, e.g. 128, 64
             layers.append(nn.Linear(prev, h))
-            layers.append(act())
+            # specify the activation layer per layer (is always the same for each)
+            layers.append(make_activation_layer(activation))
             if dropout and dropout > 0:
                 layers.append(nn.Dropout(p=float(dropout)))
             prev = h
+        # output layer
         layers.append(nn.Linear(prev, 1))  # logits
+        # wrap layers
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -185,6 +254,7 @@ class MLP(nn.Module):
 
 
 def set_all_seeds(seed: int):
+    # for reproducibility, set seeds accordingly
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -197,29 +267,34 @@ def weighted_roc_auc(y_true: np.ndarray,
                      sample_weight: Optional[np.ndarray] = None) -> float:
     y_true = np.asarray(y_true, dtype=int)
     y_score = np.asarray(y_score, dtype=float)
-    if sample_weight is None:
-        sample_weight = np.ones_like(y_true, dtype=float)
-    else:
-        sample_weight = np.asarray(sample_weight, dtype=float)
 
+    # take absolute weights for ROC eval too
+    sample_weight = np.asarray(sample_weight, dtype=float)
+    sample_weight = np.where(np.isfinite(sample_weight), np.abs(sample_weight), 0.0)
+
+    # ensure we have appropriate weights and output scores
     mask = np.isfinite(y_score) & np.isfinite(sample_weight)
     y_true = y_true[mask]
     y_score = y_score[mask]
     sample_weight = sample_weight[mask]
 
+    # get weights for true-positives
     w_pos = float(sample_weight[y_true == 1].sum())
+    # get weights for true-negatives
     w_neg = float(sample_weight[y_true == 0].sum())
-    if w_pos <= 0.0 or w_neg <= 0.0:
-        return float("nan")
 
+    # sorting from highest to lowest (-yscore since argsort defaults to ascending)    
     order = np.argsort(-y_score, kind="mergesort")
+    # apply ordering to all sets
     y_true = y_true[order]
     y_score = y_score[order]
     sample_weight = sample_weight[order]
 
+    # likely not needed given float precision, have seen elsewhere for ROCs -> make sure each group for the ROC is unique    
     is_new = np.concatenate(([True], y_score[1:] != y_score[:-1]))
     group_starts = np.where(is_new)[0]
 
+    # true positive, flase positive and AUC
     tpr = 0.0
     fpr = 0.0
     auc = 0.0
@@ -236,6 +311,8 @@ def weighted_roc_auc(y_true: np.ndarray,
         next_cum_neg = cum_neg + w_neg_grp
         tpr_next = next_cum_pos / w_pos
         fpr_next = next_cum_neg / w_neg
+        
+        # trapezoid integration
         auc += (fpr_next - fpr) * (tpr + tpr_next) / 2.0
 
         cum_pos = next_cum_pos
@@ -246,19 +323,28 @@ def weighted_roc_auc(y_true: np.ndarray,
     return float(auc)
 
 
+# no grad is faster here when we're just doing evaluation. Device is almost always cpu, left in-case of gpu usage. Not really needed.
 @torch.no_grad()
 def predict_proba(model: nn.Module, X: np.ndarray, device: torch.device, batch_size: int = 8192):
+    # put model into eval mode, since we're using dropout this ensures all neurons are active to evaluate entire model.
     model.eval()
+    # load dataset, dummy values for second argument (just for function to run, not needed later)
     ds = ArrayDataset(X, np.zeros(len(X), dtype=np.float32))
+    # create batches of events
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    
     out = []
     for xb, _ in dl:
+        # move batch to device, for cpu this is not needed
         xb = xb.to(device)
+        # evaluate MLP
         logits = model(xb)
+        # map logit to [0,1] with sigmoid
         out.append(torch.sigmoid(logits).detach().cpu().numpy())
+    # output full array of scores
     return np.concatenate(out, axis=0)
 
-
+# function to train one MLP iteration, called within optuna hyperparameter optimisation
 def train_one(model: nn.Module,
               Xtr: np.ndarray, ytr: np.ndarray,
               Xva: np.ndarray, yva: np.ndarray,
@@ -273,43 +359,66 @@ def train_one(model: nn.Module,
               patience: int,
               device: torch.device,
               return_history: bool = False):
+    # only needed for GPU use
     model.to(device)
 
+    # training dataset:
     tr_ds = ArrayDataset(Xtr, ytr)
+    # validation dataset:
     va_ds = ArrayDataset(Xva, yva)
+    
+    # load into required format, shuffle on for training (not for valid)
     tr_dl = DataLoader(tr_ds, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=False)
     va_dl = DataLoader(va_ds, batch_size=batch_size, shuffle=False, num_workers=0, drop_last=False)
 
+    # initialise adam optimisaer (https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html)
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay,
                            betas=(beta1, beta2), eps=eps)
+    
+    # unweighted loss, need with Logits since we're outputting raw rather than probabilites.
+    # this is the standard BCE but applies the sigmoid fn to map to [0,1]
     loss_fn = nn.BCEWithLogitsLoss()
 
+    
     best_state = None
     best_val = float("inf")
     bad = 0
     history = {"train_loss": [], "val_loss": []}
 
+    # start training over max_epochs (200 by default)
     for epoch in range(max_epochs):
+        # enter training mode, required if using dropout
         model.train()
+        # initialise counters for evaluating loss over batches
         tr_loss_sum = 0.0
         tr_count = 0
+        
+        
         for xb, yb in tr_dl:
             xb = xb.to(device); yb = yb.to(device)
+            # clear out old
             opt.zero_grad(set_to_none=True)
+            # forward pass, outputs logit
             logits = model(xb)
+            # compute loss
             loss = loss_fn(logits, yb)
+            # run backpropagation
             loss.backward()
+            # update model parameters from adam
             opt.step()
             bs = int(xb.shape[0])
             tr_loss_sum += float(loss) * bs
             tr_count += bs
 
         # validation
+        # change back to eval mode, no dropout
         model.eval()
         vloss_sum = 0.0
         vcount = 0
+        # whilst running validation, more efficient running with no_grad:
         with torch.no_grad():
             for xb, yb in va_dl:
+                # run model, no step / backward here since we're not updating the model, just applying.
                 xb = xb.to(device); yb = yb.to(device)
                 logits = model(xb)
                 loss = loss_fn(logits, yb)
@@ -321,6 +430,7 @@ def train_one(model: nn.Module,
         history["train_loss"].append(float(tr_loss))
         history["val_loss"].append(float(vloss))
 
+        # early-stopping, if the validation loss doesn't improve for <patience> epochs then we stop.
         if vloss < best_val - 1e-6:
             best_val = vloss
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
@@ -332,25 +442,33 @@ def train_one(model: nn.Module,
 
     if best_state is not None:
         model.load_state_dict(best_state)
+        
+    # want to keep history for validation / diagnostic purposes
     if return_history:
         return best_val, history
     return best_val
 
 
 # ------------------------------
-# Balanced selection 
+# Balanced selection, want to have equal numbers of signal / background events in training.
+# limiting factor here is the number of background events usually.
 # ------------------------------
 def make_balanced_train_selection(tr_idx, y, w_norm, rng: np.random.Generator):
+    # separate based on labels:
     tr_sig = tr_idx[y[tr_idx] == 1]
     tr_bkg = tr_idx[y[tr_idx] == 0]
-    N_bal = max(1, min(tr_sig.size, tr_bkg.size))
+    
+    # get minimum of the two, this sets the maximum possible even set of events.
+    N_bal = min(tr_sig.size, tr_bkg.size)
 
-    sig_sel = rng.choice(tr_sig, size=N_bal, replace=(tr_sig.size < N_bal))
+    # uniform random draw of signal events of size N_bal
+    sig_sel = rng.choice(tr_sig, size=N_bal, replace=False)
 
-    p_bkg = w_norm[tr_bkg].astype(float)
-    p_bkg = np.full_like(p_bkg, 1 / len(p_bkg)) if p_bkg.sum() <= 0 else (p_bkg / p_bkg.sum())
+    # Sample backgrounds with probabilities proportional to the non-negative training weights.
+    p_bkg = np.abs(w_norm[tr_bkg].astype(float))
+    p_bkg = p_bkg / p_bkg.sum()
     bkg_sel = tr_bkg[rng.choice(np.arange(tr_bkg.size), size=N_bal,
-                                replace=(tr_bkg.size < N_bal), p=p_bkg)]
+                                replace=False, p=p_bkg)]
 
     tr_sel = np.concatenate([sig_sel, bkg_sel])
     ytr = np.concatenate([np.ones(N_bal, int), np.zeros(N_bal, int)])
@@ -358,6 +476,7 @@ def make_balanced_train_selection(tr_idx, y, w_norm, rng: np.random.Generator):
     return tr_sel[order], ytr[order]
 
 
+# split into training and validation sets
 def split_train_val(tr_sel, ytr, val_frac: float, rng: np.random.Generator):
     n = tr_sel.size
     n_val = max(1, int(val_frac * n))
@@ -376,6 +495,7 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
     rng = np.random.default_rng(random_state)
     device = device or (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
 
+    # setup objectives to sample over
     def objective(trial: optuna.Trial):
         hidden_choices = [
             (256, 128, 64), (256, 128), (128, 128, 64),
@@ -386,7 +506,7 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
             "weight_decay": 10 ** trial.suggest_float("wd_log10", -8, -2),
             "lr": 10 ** trial.suggest_float("lr_log10", -4, -1.5),
             "batch_size": trial.suggest_categorical("batch_size", [256, 512, 1024, 2048]),
-            "activation": trial.suggest_categorical("activation", ["relu"]),
+            "activation": trial.suggest_categorical("activation", supported_activation_names()),
             "patience": trial.suggest_int("patience", 12, 30),
             "val_frac": trial.suggest_float("val_frac", 0.10, 0.20),
             "beta1": trial.suggest_float("beta1", 0.85, 0.95),
@@ -403,7 +523,8 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
             tr_sel, ytr = make_balanced_train_selection(tr_idx, y, w_norm, rng)
             tr_sel2, ytr2, va_sel, yva = split_train_val(tr_sel, ytr, params["val_frac"], rng)
 
-            # scaler fit on training selection
+            # scaler fit only on training selection
+            # this just does: (x - mean) / std_dev
             scaler = StandardScaler(with_mean=True, with_std=True)
             Xtr = scaler.fit_transform(X[tr_sel2])
             Xva = scaler.transform(X[va_sel])
@@ -437,7 +558,9 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
 
+    # get best from the full set of trials:
     bp = study.best_trial.params
+    # save the best params
     best_params = {
         "hidden": bp["hidden"],
         "weight_decay": 10 ** bp["wd_log10"],
@@ -498,8 +621,9 @@ def main():
             raise KeyError(f"Channel '{channel}' not found in {args.features_config}")
         feats = list(feat_cfg["channels"][channel]["features"])
 
-        X, y, proc_names, w_xsec, files = load_channel_dataframe(indir, channel, feats, args.signal)
+        X, y, proc_names, w_xsec, files = load_channel_arrays(indir, channel, feats, args.signal)
         w_norm = normalise_per_process_weights(proc_names, w_xsec)
+        print("  Using per-process normalised |weight_xsec| for training/sampling.")
 
         splits = weighted_stratified_kfold_indices(
             y=y, proc=proc_names, w=w_norm, n_splits=args.splits, random_state=args.seed
@@ -508,7 +632,8 @@ def main():
         ch_out = outdir / channel
         ch_out.mkdir(parents=True, exist_ok=True)
 
-        print("  > Tuning hyperparameters with Optuna ...")
+        print("  Tuning hyperparameters with Optuna")
+        # this is by far the most time consuming step:
         best_params, best_cv_auc = tune_hyperparams_torch(
             X, y, proc_names, w_norm, splits,
             random_state=args.seed, n_trials=args.n_trials,
@@ -518,12 +643,15 @@ def main():
         print("  Best params:", best_params)
         print(f"  Best mean CV AUC: {best_cv_auc:.4f}")
 
+        # dump the best model parameters
         with open(ch_out / f"{args.tag}_best_params.json", "w") as jf:
             json.dump(best_params, jf, indent=2)
+            
+        # now that we have the best performing set of parameters, we train and save the full model.
 
         fold_aucs = []
         rng = np.random.default_rng(args.seed)
-
+        
         for fold, (tr_idx, te_idx) in enumerate(splits, start=1):
             print(f"\n  Fold {fold}/{args.splits}")
 
@@ -575,7 +703,7 @@ def main():
                 "n_splits": args.splits,
                 "random_state": args.seed,
                 "best_params": best_params,
-                "val_auc_weighted": float(auc),
+                "test_auc_weighted": float(auc),
                 "files": [str(p) for p in files],
                 "signal_key": args.signal,
                 "torch": {
