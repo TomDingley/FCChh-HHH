@@ -53,16 +53,31 @@ class ArrayDataset(Dataset):
         return self.X[i]
 
 
+def make_activation_layer(name: str) -> nn.Module:
+    key = str(name).strip().lower()
+    factories = {
+        "relu": nn.ReLU,
+        "tanh": nn.Tanh,
+        "leaky_relu": lambda: nn.LeakyReLU(negative_slope=0.01),
+        "elu": nn.ELU,
+    }
+    if hasattr(nn, "GELU"):
+        factories["gelu"] = nn.GELU
+    if key not in factories:
+        supported = ", ".join(sorted(factories))
+        raise ValueError(f"Unsupported activation '{name}'. Supported activations: {supported}")
+    return factories[key]()
+
+
 class MLP(nn.Module):
     def __init__(self, n_in: int, hidden=(128, 64), activation="relu", dropout=0.0):
         super().__init__()
-        act = nn.ReLU if activation == "relu" else nn.Tanh
 
         layers = []
         prev = n_in
         for h in hidden:
             layers.append(nn.Linear(prev, h))
-            layers.append(act())
+            layers.append(make_activation_layer(activation))
             if dropout and dropout > 0:
                 layers.append(nn.Dropout(p=float(dropout)))
             prev = h
@@ -140,7 +155,10 @@ def load_models(channel_dir: Path, tag: str, n_features: int, device: torch.devi
 
 
 def normalise_per_process_weights(proc_names: np.ndarray, w_xsec: np.ndarray) -> np.ndarray:
-    w = w_xsec.astype(float).copy()
+    # Match training-time split weighting (|weight_xsec|) for stable OOF fold
+    # assignment in the presence of negative event weights.
+    w = np.abs(w_xsec.astype(float))
+    w = np.where(np.isfinite(w), w, 0.0)
     for p in np.unique(proc_names):
         mask = (proc_names == p)
         S = float(w[mask].sum())
@@ -253,18 +271,12 @@ def main():
     ap.add_argument("--outdir", default="scored_ntuples", help="Output directory for scored ROOTs")
     ap.add_argument("--tag", default="mlp_torch", help="Model tag/prefix for filenames")
     ap.add_argument("--channels", nargs="+", default=["hadhad", "lephad"])
-    ap.add_argument("--device", default=None, help="cuda or cpu (default: auto)")
-    ap.add_argument("--batch-size", type=int, default=8192)
     ap.add_argument("--suffix", default="", help="Suffix for output ROOT filenames")
     ap.add_argument("--signal", default="mgp8_pp_hhh_84TeV", help="Substring to identify signal process")
-    ap.add_argument("--splits", type=int, default=None, help="Number of folds (default: infer from models)")
     ap.add_argument("--seed", type=int, default=42, help="Random state")
-    ap.add_argument("--no-oof", action="store_true", help="Average all fold models instead of OOF scoring")
     args = ap.parse_args()
 
-    device = torch.device(args.device) if args.device else (
-        torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    )
+    device =  torch.device("cpu")
 
     feat_cfg = None
     if args.features_config:
@@ -292,57 +304,27 @@ def main():
         models = load_models(channel_dir, args.tag, len(features), device)
         models_sorted = sorted(models, key=lambda x: (x[0] is None, x[0]))
 
-        if args.no_oof:
-            files = sorted(indir.glob(f"*_{channel}.root"))
-            if not files:
-                raise FileNotFoundError(f"No ROOT files like '*_{channel}.root' in {indir}")
-            for fpath in files:
-                proc = fpath.stem.replace(f"_{channel}", "")
-                outpath = outdir / channel / f"{proc}.root"
-                with uproot.open(fpath) as f:
-                    tree = f["events"]
-                    events = tree.arrays(library="ak")
-                missing = [v for v in features if v not in events.fields]
-                if missing:
-                    raise KeyError(f"Missing features in {fpath.name}: {missing}")
-                cols = [ak.to_numpy(events[v]) for v in features]
-                X = np.column_stack(cols).astype(np.float32, copy=False)
-                fold_scores = []
-                for _, _, model, scaler in models_sorted:
-                    Xs = scaler.transform(X)
-                    yprob = predict_proba(model, Xs, device=device, batch_size=args.batch_size)
-                    fold_scores.append(yprob)
-                scores = np.mean(np.vstack(fold_scores), axis=0)
-                scores_std = np.std(np.vstack(fold_scores), axis=0)
-                out_arrays = {field: events[field] for field in events.fields}
-                out_arrays["mlp_score"] = scores
-                out_arrays["mlp_score_std"] = scores_std
-                for (_, fold_name, _, _), fold_score in zip(models_sorted, fold_scores):
-                    out_arrays[f"{fold_name}_score"] = fold_score
-                outpath.parent.mkdir(parents=True, exist_ok=True)
-                with uproot.recreate(outpath) as fout:
-                    fout["events"] = out_arrays
-                print(f"{channel} scored: {outpath}")
-            continue
-
+    
         X, y, proc_names, w_xsec, file_ids, files = load_channel_arrays(
             indir, channel, features, args.signal
         )
         w_norm = normalise_per_process_weights(proc_names, w_xsec)
 
-        n_splits = args.splits if args.splits is not None else len(models_sorted)
+        n_splits = len(models_sorted)
         if n_splits != len(models_sorted):
             raise ValueError(
                 f"--splits={n_splits} but found {len(models_sorted)} models in {channel_dir}."
             )
-
+        # create exactly the same splits as used in trianing
         splits = weighted_stratified_kfold_indices(
             y=y, proc=proc_names, w=w_norm, n_splits=n_splits, random_state=args.seed
         )
 
+        # define scores / folds
         oof_scores = np.full(X.shape[0], np.nan, dtype=np.float32)
         oof_folds = np.full(X.shape[0], -1, dtype=np.int32)
 
+        # run over each fold and only apply model not trained on
         for fold_num, fold_name, model, scaler in models_sorted:
             if fold_num is None:
                 raise ValueError(f"Could not parse fold number from model name: {fold_name}")
@@ -350,7 +332,7 @@ def main():
             if te_idx.size == 0:
                 continue
             Xte = scaler.transform(X[te_idx])
-            yprob = predict_proba(model, Xte, device=device, batch_size=args.batch_size)
+            yprob = predict_proba(model, Xte, device=device, batch_size=8192)
             oof_scores[te_idx] = yprob
             oof_folds[te_idx] = fold_num
 

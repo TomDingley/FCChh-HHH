@@ -10,7 +10,7 @@ import uproot
 
 from aesthetics import banner_heatmaps
 from config import BACKGROUNDS, LUMINOSITY_PB, N_BINS_1D, SELECTION, SIGNAL, XLIM_MAP
-from tools2 import build_mask_from_selection, numeric
+from tools import build_mask_from_selection, numeric
 import matplotlib.pyplot as plt
 
 def _nll_poisson(n: np.ndarray, mu: np.ndarray) -> float:
@@ -259,7 +259,7 @@ def cli() -> None:
     ap.add_argument("--k3-true", type=float, default=1.0)
     ap.add_argument("--k4-true", type=float, default=1.0)
     ap.add_argument("--levels", type=float, nargs="+", default=[2.30],
-                    help="ΔNLL contour levels (2D: 2.30=1σ, 5.99=2σ)")
+                    help="dNLL contour levels (2D: 2.30=1sig, 5.99=2sig)")
     args = ap.parse_args()
 
     root = Path(args.root_dir).expanduser().resolve()

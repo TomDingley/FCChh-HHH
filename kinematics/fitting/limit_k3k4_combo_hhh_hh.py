@@ -10,7 +10,7 @@ import uproot
 
 from aesthetics import banner_heatmaps
 from config import BACKGROUNDS, LUMINOSITY_PB, N_BINS_1D, SELECTION, SIGNAL, XLIM_MAP
-from tools2 import BASIS_KEYS, build_mask_from_selection, build_moments, evaluate_weights_from_moments
+from tools import BASIS_KEYS, build_mask_from_selection, build_moments, evaluate_weights_from_moments
 import matplotlib.pyplot as plt
 
 def _nll_poisson(n: np.ndarray, mu: np.ndarray) -> float:

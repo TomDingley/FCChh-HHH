@@ -9,9 +9,48 @@ import matplotlib.pyplot as plt
 import numpy as np
 import uproot
 
-from aesthetics import LABEL_MAP, banner, process_colours, process_labels, banner_heatmaps
+from aesthetics import LABEL_MAP, process_colours, process_labels, banner_heatmaps
 from config import BACKGROUNDS, LUMINOSITY_PB, N_BINS_1D, SELECTION, SIGNAL, XLIM_MAP
-from tools2 import BASIS_KEYS, build_mask_from_selection, build_moments, evaluate_weights_from_moments
+from tools import BASIS_KEYS, build_mask_from_selection, build_moments, evaluate_weights_from_moments
+
+
+@dataclass(frozen=True)
+class ScanRange:
+    start: float
+    stop: float
+    steps: int
+
+    def values(self) -> np.ndarray:
+        return np.linspace(self.start, self.stop, self.steps)
+
+# lots of defaults
+DEFAULT_OUTDIR = "fit"
+DEFAULT_CHANNEL = "HadHad"
+DEFAULT_SIGNAL = SIGNAL
+DEFAULT_VAR = "m_hhh_vis"
+DEFAULT_MLP_VAR = "mlp_score"
+DEFAULT_MLP_RANGE = ScanRange(0.5, 0.99, 51)
+
+DEFAULT_K3 = 1.0
+DEFAULT_K4 = 1.0
+DEFAULT_K3_TRUE = 1.0
+DEFAULT_K4_TRUE = 1.0
+DEFAULT_K3K4_TRUE = (1.0, 1.0)
+
+DEFAULT_K3_RANGE = ScanRange(-2.5, 5.0, 101)
+DEFAULT_K4_RANGE = ScanRange(-10.0, 30.0, 101)
+DEFAULT_K3_2D_RANGE = ScanRange(-3.0, 6.0, 41)
+DEFAULT_K4_2D_RANGE = ScanRange(-15.0, 35.0, 51)
+
+RUN_K3_SCAN = True
+RUN_K4_SCAN = True
+DIAGNOSTICS_N = 20
+DIAGNOSTICS_K3 = True
+DIAGNOSTICS_K4 = True
+DIAGNOSTICS_K3K4_CONTOUR = True
+DIAGNOSTICS_SHAPE_K4 = True
+SHAPE_K4_POINTS = [-20.0, 1.0, 20.0]
+MLP_K4_LIMIT_CURVE = True
 
 
 @dataclass
@@ -1009,50 +1048,13 @@ def scan_k3_likelihood(
 
 
 def cli() -> None:
-    ap = argparse.ArgumentParser(description="Optimize mlp_score cut for binned m_hhh_vis significance and scan k3/k4 likelihood.")
+    ap = argparse.ArgumentParser(
+        description="Optimize the standard MLP cut and make the standard k3/k4 diagnostics."
+    )
     ap.add_argument("--root-dir", required=True, help="Directory containing ROOT files")
-    ap.add_argument("--outdir", default="fit", help="Output directory")
-    ap.add_argument("--channel", default="HadHad", choices=list(SELECTION.keys()))
-    ap.add_argument("--signal", default=SIGNAL, help="Signal process name (file stem)")
-    ap.add_argument("--var", default="m_hhh_vis", help="Shape variable")
-    ap.add_argument("--mlp-var", default="mlp_score", help="MLP score branch name")
-    ap.add_argument("--mlp-min", type=float, default=0.5)
-    ap.add_argument("--mlp-max", type=float, default=0.99)
-    ap.add_argument("--mlp-steps", type=int, default=51)
-    ap.add_argument("--k3", type=float, default=1.0)
-    ap.add_argument("--k4", type=float, default=1.0)
-    ap.add_argument("--k4-true", type=float, default=1.0)
-    ap.add_argument("--k4-min", type=float, default=-10.0)
-    ap.add_argument("--k4-max", type=float, default=30.0)
-    ap.add_argument("--k4-steps", type=int, default=101)
-    ap.add_argument("--k3-true", type=float, default=1.0)
-    ap.add_argument("--k3-min", type=float, default=-2.5)
-    ap.add_argument("--k3-max", type=float, default=5)
-    ap.add_argument("--k3-steps", type=int, default=101)
+    ap.add_argument("--outdir", default=DEFAULT_OUTDIR, help=f"Output directory (default: {DEFAULT_OUTDIR})")
+    ap.add_argument("--channel", default=DEFAULT_CHANNEL, choices=list(SELECTION.keys()))
     ap.add_argument("--mlp-cut", type=float, default=None, help="Override mlp cut for k4 scan (default: best binned)")
-    ap.add_argument("--skip-k4-scan", action="store_true")
-    ap.add_argument("--skip-k3-scan", action="store_true")
-    ap.add_argument("--diagnostics-n", type=int, default=20, help="Number of diagnostic cut points to plot (0 to disable)")
-    ap.add_argument("--diagnostics-k4", action="store_true", default=True, help="Run k4 scans for diagnostic cuts (default: on)")
-    ap.add_argument("--no-diagnostics-k4", action="store_false", dest="diagnostics_k4", help="Disable k4 scans for diagnostic cuts")
-    ap.add_argument("--diagnostics-k3", action="store_true", default=True, help="Run k3 scans for diagnostic cuts (default: on)")
-    ap.add_argument("--no-diagnostics-k3", action="store_false", dest="diagnostics_k3", help="Disable k3 scans for diagnostic cuts")
-    ap.add_argument("--diagnostics-k3k4-contour", action="store_true", default=True, help="Plot 2D k3-k4 1σ contours for diagnostic cuts (default: on)")
-    ap.add_argument("--no-diagnostics-k3k4-contour", action="store_false", dest="diagnostics_k3k4_contour", help="Disable 2D k3-k4 contours for diagnostic cuts")
-    ap.add_argument("--k3-2d-min", type=float, default=-3.0)
-    ap.add_argument("--k3-2d-max", type=float, default=6.0)
-    ap.add_argument("--k3-2d-steps", type=int, default=41)
-    ap.add_argument("--k4-2d-min", type=float, default=-15.0)
-    ap.add_argument("--k4-2d-max", type=float, default=35.0)
-    ap.add_argument("--k4-2d-steps", type=int, default=51)
-    ap.add_argument("--k3k4-true", type=float, nargs=2, default=[1.0, 1.0], metavar=("K3_TRUE", "K4_TRUE"),
-                    help="Asimov truth point (k3_true k4_true) for 2D contours")
-    ap.add_argument("--diagnostics-shape-k4", action="store_true", default=True, help="Plot k4 shape variations for diagnostic cuts (default: on)")
-    ap.add_argument("--no-diagnostics-shape-k4", action="store_false", dest="diagnostics_shape_k4", help="Disable k4 shape plots for diagnostic cuts")
-    ap.add_argument("--shape-k4-points", type=float, nargs="+", default=[-20.0, 1.0, 20.0],
-                    help="k4 points for signal shape variation plots")
-    ap.add_argument("--mlp-k4-limit-curve", action="store_true", default=True, help="Plot k4 limit range vs mlp cut (default: on)")
-    ap.add_argument("--no-mlp-k4-limit-curve", action="store_false", dest="mlp_k4_limit_curve", help="Disable k4 limit range vs mlp cut plot")
     args = ap.parse_args()
 
     root = Path(args.root_dir).expanduser().resolve()
@@ -1061,82 +1063,72 @@ def cli() -> None:
 
     files = {
         proc: root / f"{proc}.root"
-        for proc in [args.signal] + [p for p in BACKGROUNDS if (root / f"{p}.root").is_file()]
+        for proc in [DEFAULT_SIGNAL] + [p for p in BACKGROUNDS if (root / f"{p}.root").is_file()]
     }
-    if not files.get(args.signal) or not files[args.signal].is_file():
-        raise FileNotFoundError(f"Signal file '{args.signal}.root' not found in {root}")
+    if not files.get(DEFAULT_SIGNAL) or not files[DEFAULT_SIGNAL].is_file():
+        raise FileNotFoundError(f"Signal file '{DEFAULT_SIGNAL}.root' not found in {root}")
 
-    cuts = np.linspace(args.mlp_min, args.mlp_max, args.mlp_steps)
-    k4_vals = None
-    if not args.skip_k4_scan or args.diagnostics_k4 or args.mlp_k4_limit_curve:
-        k4_vals = np.linspace(args.k4_min, args.k4_max, args.k4_steps)
-    k3_vals = None
-    if not args.skip_k3_scan or args.diagnostics_k3:
-        k3_vals = np.linspace(args.k3_min, args.k3_max, args.k3_steps)
-    k3_vals_2d = None
-    k4_vals_2d = None
-    if args.diagnostics_k3k4_contour:
-        k3_vals_2d = np.linspace(args.k3_2d_min, args.k3_2d_max, args.k3_2d_steps)
-        k4_vals_2d = np.linspace(args.k4_2d_min, args.k4_2d_max, args.k4_2d_steps)
+    cuts = DEFAULT_MLP_RANGE.values()
+    k3_vals = DEFAULT_K3_RANGE.values()
+    k4_vals = DEFAULT_K4_RANGE.values()
+    k3_vals_2d = DEFAULT_K3_2D_RANGE.values()
+    k4_vals_2d = DEFAULT_K4_2D_RANGE.values()
+
     scan = scan_mlp_significance(
         files=files,
-        signal_name=args.signal,
-        var=args.var,
+        signal_name=DEFAULT_SIGNAL,
+        var=DEFAULT_VAR,
         channel=args.channel,
-        mlp_var=args.mlp_var,
+        mlp_var=DEFAULT_MLP_VAR,
         cuts=cuts,
-        k3=args.k3,
-        k4=args.k4,
+        k3=DEFAULT_K3,
+        k4=DEFAULT_K4,
         outdir=outdir,
-        diagnostics_n=args.diagnostics_n,
-        diagnostics_k4=args.diagnostics_k4,
+        diagnostics_n=DIAGNOSTICS_N,
+        diagnostics_k4=DIAGNOSTICS_K4,
         diagnostics_k4_vals=k4_vals,
-        diagnostics_k4_true=args.k4_true,
-        diagnostics_k3=args.diagnostics_k3,
+        diagnostics_k4_true=DEFAULT_K4_TRUE,
+        diagnostics_k3=DIAGNOSTICS_K3,
         diagnostics_k3_vals=k3_vals,
-        diagnostics_k3_true=args.k3_true,
-        diagnostics_shape_k4=args.diagnostics_shape_k4,
-        diagnostics_shape_k4_points=list(args.shape_k4_points),
-        diagnostics_k3k4_contour=args.diagnostics_k3k4_contour,
+        diagnostics_k3_true=DEFAULT_K3_TRUE,
+        diagnostics_shape_k4=DIAGNOSTICS_SHAPE_K4,
+        diagnostics_shape_k4_points=SHAPE_K4_POINTS,
+        diagnostics_k3k4_contour=DIAGNOSTICS_K3K4_CONTOUR,
         diagnostics_k3_vals_2d=k3_vals_2d,
         diagnostics_k4_vals_2d=k4_vals_2d,
-        diagnostics_k3k4_true=(float(args.k3k4_true[0]), float(args.k3k4_true[1])),
-        limit_curve=args.mlp_k4_limit_curve,
+        diagnostics_k3k4_true=DEFAULT_K3K4_TRUE,
+        limit_curve=MLP_K4_LIMIT_CURVE,
         limit_k4_vals=k4_vals,
-        limit_k4_true=args.k4_true,
+        limit_k4_true=DEFAULT_K4_TRUE,
     )
 
     mlp_cut = args.mlp_cut if args.mlp_cut is not None else scan["best_cut_binned"]
-    if not args.skip_k4_scan:
-        if k4_vals is None:
-            k4_vals = np.linspace(args.k4_min, args.k4_max, args.k4_steps)
+    if RUN_K4_SCAN:
         scan_k4_likelihood(
             sig_cache=scan["sig_cache"],
             bkg_caches=scan["bkg_caches"],
             edges=scan["edges"],
             mlp_cut=mlp_cut,
-            k3=args.k3,
+            k3=DEFAULT_K3,
             k4_vals=k4_vals,
-            k4_true=args.k4_true,
+            k4_true=DEFAULT_K4_TRUE,
             outdir=outdir,
             channel=args.channel,
-            var=args.var,
+            var=DEFAULT_VAR,
         )
 
-    if not args.skip_k3_scan:
-        if k3_vals is None:
-            k3_vals = np.linspace(args.k3_min, args.k3_max, args.k3_steps)
+    if RUN_K3_SCAN:
         scan_k3_likelihood(
             sig_cache=scan["sig_cache"],
             bkg_caches=scan["bkg_caches"],
             edges=scan["edges"],
             mlp_cut=mlp_cut,
             k3_vals=k3_vals,
-            k4=args.k4,
-            k3_true=args.k3_true,
+            k4=DEFAULT_K4,
+            k3_true=DEFAULT_K3_TRUE,
             outdir=outdir,
             channel=args.channel,
-            var=args.var,
+            var=DEFAULT_VAR,
         )
 
 

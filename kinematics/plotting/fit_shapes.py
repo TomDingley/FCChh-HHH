@@ -16,7 +16,7 @@ import numpy as np
 
 def gaussian_resolution_pm_rms(data, nsig_rms=1.5, bins=40):
     """
-    Resolution := fitted Gaussian sigma in the window [mean ± nsig_rms * RMS].
+    Resolution := fitted Gaussian sigma in the window [mean pm nsig_rms * RMS].
 
     Returns:
       mu_fit, sigma_fit, (lo, hi), n_used
@@ -94,7 +94,6 @@ def scb_low(x, mu, sigma, alpha_L, n_L):
     res[mask_core] = np.exp(-0.5 * t[mask_core]**2)
     res[mask_low]  = A_L * (B_L - t[mask_low])**(-n_L)
 
-    # normalisation factor (approximate, or you can integrate numerically if pedantic)
     norm = sigma * np.sqrt(2*np.pi)
     return res / norm
 
@@ -120,7 +119,7 @@ def fit_signal_mass_shape(files: dict[str, Path], outdir: Path, var: str, commen
         else:
             xmin, xmax = data.min(), data.max()
         
-        # --- Resolution: Gaussian sigma in ±1.5 RMS window around mean ---
+        # --- Resolution: Gaussian sigma in pm 1.5 RMS window around mean ---
         res_mu, res_sigma, (res_lo, res_hi), res_n = gaussian_resolution_pm_rms(
             data, nsig_rms=1.5, bins=N_BINS_1D
         )
@@ -173,6 +172,7 @@ def fit_signal_mass_shape(files: dict[str, Path], outdir: Path, var: str, commen
         ax.set_ylabel("Normalised density", loc="top")
         ax.legend(frameon=False, fontsize=10, loc="upper right")
         banner(ax, comment)
+        
         # --- Add Gaussian & Laplace fit parameters to the plot ---
         gauss_mu, gauss_sigma = popt_gauss
         lap_mu, lap_b = popt_laplace

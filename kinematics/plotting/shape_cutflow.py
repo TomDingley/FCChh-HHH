@@ -109,7 +109,7 @@ def _prettify_cut_label(term: str) -> str:
         if re.search(rf"\b{re.escape(tok)}\b", pretty):
             pretty_label = _strip_units(LABEL_MAP[tok])
             pretty = re.sub(rf"\b{re.escape(tok)}\b", lambda _m, pl=pretty_label: pl, pretty)
-    # Normalize logical operators for readability
+    # Normalise logical operators for readability
     pretty = pretty.replace("&&", " and ").replace("||", " or ")
     pretty = pretty.replace(">=", " ≥ ").replace("<=", " ≤ ")
     pretty = pretty.replace("!=", " ≠ ").replace("==", " = ")

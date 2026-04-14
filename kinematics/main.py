@@ -11,7 +11,7 @@ from cutflow import write_cutflow_weighted_summary, write_region_yield_summary
 from aesthetics import LABEL_MAP, channel_labels
 from plotting.histograms import plot_1d_histograms, overlay_histogram, compare_histogram
 from plotting.shape_cutflow import plot_shape_cutflow
-from plotting.heatmaps import plot_heatmaps, plot_hist2d_heatmaps
+from plotting.heatmaps import plot_hist2d_heatmaps
 from plotting.stack import normalised_overlay_plot, stack_plot_weight, normalised_overlay_plot_chan, normalised_slice_plot, raw_overlay_plot, normalised_total_background_plot
 from plotting.fit_shapes import fit_signal_mass_shape
 from plotting.signal_reweighter import compare_signal_reweight_points, heatmap_signal_reweight_efficiency, heatmap_signal_reweight_efficiency_LR, heatmap_signal_reweight_mean,  heatmap_signal_pairing_mean, heatmap_signal_reweight_mean_with_slices, heatmap_signal_reweight_efficiency_presel, heatmap_signal_reweight_xsm_after_selection
@@ -27,8 +27,6 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
 
         #if overlay_histogram:
         #    overlay_histogram(tree, mask, proc, outdir, comment, channel)
-        #if plot_heatmaps:
-        #    plot_heatmaps(tree, mask, proc, outdir, comment, channel)
 
         plot_hist2d_heatmaps(
             tree=tree,
@@ -183,7 +181,8 @@ def cli():
             k4_points = np.linspace(-15, 30, 100)
             xsm_maps = True
             if xsm_maps:
-                # make a contour map across the k3k4 space
+                # make a contour map across the k3k4 space, before and after a selectiion
+                # particularly interesting if you apply the mlp_score cut here.
                 heatmap_signal_reweight_xsm_after_selection(
                     files=files,
                     outdir=out_base,
@@ -197,6 +196,8 @@ def cli():
                 )
             maps = False
             if maps:
+                
+                # these functions might need different ntuples, welcome to try regardless
                 heatmap_signal_reweight_efficiency_presel(
                     files=files,
                     outdir=out_base,

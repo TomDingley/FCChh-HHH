@@ -38,9 +38,7 @@ def plot_1d_histograms(proc, tree, mask, outdir, comment, channel):
         ax.set_ylim(0, max(counts) * 1.5)
         save_1d_hist(ax, outdir / f"{leaf}_{channel}.pdf", comment_chan)
 
-import numpy as np
-import awkward as ak
-import matplotlib.pyplot as plt
+
 def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
     """
     Overlay normalised 1D histograms for groups of variables.
@@ -185,7 +183,7 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
 
             msg3 = msg4 = msg5 = None
 
-            # Optional Hττ-only stat
+            # Optional Htautau-only stat
             if "pT_truth_htautau" in names:
                 t = ak.to_numpy(tree["pT_truth_htautau"].array(library="ak")[mask])
                 t_finite = np.isfinite(t)
@@ -196,7 +194,7 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
                 comment_this += "\n" + msg3
 
                 # ---- Combined boosted cases ----
-                # ≥1 Hbb boosted AND Hττ boosted (same event)
+                # ≥1 Hbb boosted AND Htautau boosted (same event)
                 valid_1tau = valid_any & t_finite
                 n_tot_1tau = int(valid_1tau.sum())
                 pass_1tau = (np.maximum(b1_safe, b2_safe) > pt_threshold) & (t > pt_threshold) & valid_1tau
@@ -205,7 +203,7 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
                 print("[info]", msg4)
                 comment_this += "\n" + msg4
 
-                # 2 Hbb boosted AND Hττ boosted (same event)
+                # 2 Hbb boosted AND Htautau boosted (same event)
                 valid_2tau = valid_both & t_finite
                 n_tot_2tau = int(valid_2tau.sum())
                 pass_2tau = (b1_safe > pt_threshold) & (b2_safe > pt_threshold) & (t > pt_threshold) & valid_2tau
@@ -222,7 +220,7 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
                 y -= 0.06
         y = 0.75
 
-        # ---- ΔR-based "boosted/collimated" counts (ΔR < 0.8) ----
+        # ---- dR-based boosted/collimated counts (dR < 0.8) ----
         msg3_dr = msg4_dr = msg5_dr = None
         dr_threshold = 0.8
 
@@ -235,7 +233,7 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
                 if pass_any is None:
                     pass_any  = np.zeros(n, dtype=bool)
                     valid_any = np.zeros(n, dtype=bool)
-            # Check each branch; accumulate "valid" (has finite ΔR) and "pass" (ΔR<thr) per event
+
             for name in ("dR_truth_tautau", "dR_truth_bb1", "dR_truth_bb2"):
                 if name in names:
                     arr = ak.to_numpy(tree[name].array(library="ak")[mask])
@@ -246,17 +244,16 @@ def overlay_histogram(tree, mask, proc, outdir, comment, channel, groups=None):
 
             # Summaries
             if pass_any is not None:
-                n_tot_any  = int(valid_any.sum())   # events where at least one ΔR is finite
-                n_pass_any = int(pass_any.sum())    # events where any ΔR < threshold
+                n_tot_any  = int(valid_any.sum())   # events where at least one dR is finite
+                n_pass_any = int(pass_any.sum())    # events where any dR < threshold
                 msg_any_dr = (
-                    rf"Events with ANY Higgs collimated (ΔR < {dr_threshold:.2f}): "
+                    rf"Events with any Higgs collimated (dR < {dr_threshold:.2f}): "
                     rf"{n_pass_any}/{n_tot_any} "
                     rf"({(n_pass_any/n_tot_any if n_tot_any>0 else 0):.1%})"
                 )
                 print("[info]", msg_any_dr)
                 comment_this += "\n" + msg_any_dr
 
-            # ---- Add to plot text stack (after your other msgs) ----
             for m in (msg3_dr, msg4_dr, msg5_dr, msg_any_dr):
                 if m is None:
                     continue
