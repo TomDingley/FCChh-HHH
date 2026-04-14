@@ -4,7 +4,7 @@ This directory contains the ingredients and workflow used to calibrate the input
 
 The calibration has two main components:
 
-1. **Missing transverse momentum resolution ($\sigma\left(p_{\text{T}}^{\text{miss}}\right)$) calibration**
+1. **Missing transverse momentum resolution - $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$ calibration**
    - determination of the detector response and resolution relevant for the MMC treatment of the missing transverse momentum
    - for the purposes of a feasibility study targeting a mostly hadronic final state, only the dominant jet term is considered
 
@@ -27,11 +27,11 @@ For leptonic decays, an additional unknown of $m_{\text{miss}}$ is included - to
 
 ### The solution
 With the assumption that all $p_{\text{T}}^{\text{miss}}$ in the event arises from the neutrinos, one has 4 equations: on-shell $\tau$'s ($m_{\tau_{1/2}}$) and $p_{\text{x,y}}^{\text{miss}}$.
-By scanning over missing-momentum vector azimuthal angles, $(\phi_1, \phi_2)$, the system is fully specified in the $\tau_{\text{had}}\tau_{\text{had}}-channel$. 
+By scanning over missing-momentum vector azimuthal angles, $(\phi_1, \phi_2)$, the system is fully specified in the $\tau_{\text{had}}\tau_{\text{had}}$-channel. 
 However, the assumption that all $p_{\text{T}}^{\text{miss}}$ arises from the neutrinos is not consistently realised. 
 Often, the two $\tau$'s are back-to-back in the transverse plane and $p_{\text{T}}^{\text{miss}}$ is dominated by detector effects such as jet mismeasurement. 
 Thus, an additional scan over x and y components of the $p_{\text{T}}^{\text{miss}}$ is performed according to the per-event $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$. 
-For each point in parameter space, the measured missing transverse momentum in the $x$-$y$ plane can be related to the two missing momentum components through
+For each point in parameter space, the measured missing transverse momentum in the $x-y$ plane can be related to the two missing momentum components through
 
 $$
 \begin{pmatrix}
@@ -111,7 +111,7 @@ where $\mathcal{P}\left( \theta_{3D}^{1(2)}(p^{1(2)}_{\tau})\right)$ are the pro
 ## Angular weight
 Starting with the angular term, this is fitted by a Log-Normal distribution. 
 An example fit is shown below.
-![Angle calibration](lognormal_ptbin_60_70.pdf)
+![Angle calibration](lognormal_ptbin_60_70.png)
 
 ## Missing momentum fraction
 

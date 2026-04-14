@@ -35,8 +35,6 @@ Steps 1 and 2 are by far the most intensive and full production of Delphes ROOT 
 
 ---
 
-There are various inputs that are provided at each step so the code can be tested at each stage, independently of the preceeding one:
-
 ## Available Inputs
 
 There are inputs available at each stage, so the code can be tested independently of the preceding step.
