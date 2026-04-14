@@ -77,7 +77,8 @@ m_{\text{vis}}^2 + m_{\text{miss}}^2
 - 2\vec{p}_{\text{vis}} \cdot \vec{p}_{\text{miss}}.
 ```
 
-Expanding $\vec{p}_{\text{vis}}$ and $\vec{p}_{\text{miss}}$ in terms of their $x$, $y$, and $z$ components then leads to a quadratic equation in $p_z^{\text{miss}}$:
+Expanding $`\vec{p}_{\text{vis}}`$ and $`\vec{p}_{\text{miss}}`$
+ in terms of their $x$, $y$, and $z$ components then leads to a quadratic equation in $p_z^{\text{miss}}$:
 
 ```math
 (p_z^{\text{miss}})^2 \left[(p_z^{\text{vis}})^2 - E_{\text{vis}}^2\right]
@@ -100,7 +101,7 @@ The weighting function takes the form:
 -\log L = -\log \left[ \mathcal{P}\left( \theta_{3D}^{1}(p^1_{\tau}) \right) \mathcal{P}\left( \theta_{3D}^{2}(p^2_{\tau}) \right) \mathcal{P}\left( \Delta p_x^{\text{miss}} \right) \mathcal{P}\left( \Delta p_y^{\text{miss}} \right) \mathcal{P}\left( x_{\text{miss}}^1 \right)\mathcal{P}\left( x_{\text{miss}}^2 \right) \right]
 ```
 
-where $\mathcal{P}\left( \theta_{3D}^{1(2)}(p^{1(2)}_{\tau})\right)$ are the probability density functions for the angle between visible and missing components, $\mathcal{P}\left( \Delta p_{x,y}^{\text{miss}} \right)$ is a Gaussian centred around the measured $p_{\text{x,y}}^{\text{miss}}$ with width $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$ and $\mathcal{P}\left( x_{\text{miss}}^1 \right)$ is a beta-function fitted to the expected missing momentum carried away per-$\tau$ decay.
+where $`\mathcal{P}\left( \theta_{3D}^{1(2)}(p^{1(2)}_{\tau})\right)`$ are the probability density functions for the angle between visible and missing components, $`\mathcal{P}\left( \Delta p_{x,y}^{\text{miss}} \right)`$ is a Gaussian centred around the measured $p_{\text{x,y}}^{\text{miss}}$ with width $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$ and $\mathcal{P}\left( x_{\text{miss}}^1 \right)$ is a beta-function fitted to the expected missing momentum carried away per-$\tau$ decay.
 
 
 # Calibrating the PDFs
