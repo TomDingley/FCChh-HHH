@@ -40,10 +40,6 @@ Each file is expected to contain a TTree called `events` and for weighted histog
 ## Setup
 The repositories is made to run with the `Key4HEP` release, and is specified in `setup.sh`.
 
-Optional:
-
-- `pdflatex` if you want `cutflow.py` to compile LaTeX tables to PDF. Without it, CSV and `.tex` outputs are still written.
-
 Run commands from the repository root:
 
 ```bash
@@ -54,37 +50,19 @@ source setup.sh
 ## Quick start
 
 ### Bulk plots and summaries
-To get started, I've hard-coded the ntuple path on the Oxford data disk.
+To get started, I've hard-coded the ntuple path on the Oxford data disk such that:
 ```bash
-python main.py --root-dir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted --outdir 84TeV/test_run
+python main.py
 ```
+Will output plots / tables for the hadhad channel. 
 
 Typical outputs include:
 
 - per-channel plot directories under `--outdir`
-- weighted cutflow tables as `.csv`, `.tex`, and optionally `.pdf`
+- weighted cutflow tables as `.csv`, `.tex`, and optionally `.pdf` (if you have pdflatex)
 - region-yield summary tables under `--outdir/summary`
 
-### Shape cutflow for one variable
-
-This standalone script is the clearest way to make cut-by-cut shape plots:
-
-```bash
-python plotting/shape_cutflow.py   --root /path/to/scored_root/mgp8_pp_hhh_84TeV.root   --var m_hhh_vis   --channel HadHad   --outdir outputs/shape_cutflow
-```
-
-### Optimize the NN score cut and perform some binned fit studies in Asimov stat-only mode
-
-```bash
-python fitting/optimise_mlp_significance.py   --root-dir /path/to/scored_root   --outdir outputs/fit   --channel HadHad   --signal mgp8_pp_hhh_84TeV   --var m_hhh_vis
-```
-
-### Cross-section-map based $\kappa_3$, $\kappa_4$ contours
-
-```bash
-python fitting/limit_k3k4_xsecmap.py   --root-dir /path/to/scored_root   --outdir outputs/fit_xsecmap   --channel HadHad   --signal mgp8_pp_hhh_84TeV   --var m_hhh_vis   --xsec-csv hhh/kinematics/xsec_grid/xsec_grid.csv   --xsec-fit hhh/kinematics/xsec_grid/xsec_fit_coeffs.txt
-```
-
+There are quite a number of functions I've added over time, with some optimisation scripts in the `fit` folder, where the NN score and bins can be checked in the asimov approximation.
 
 ## Configuration
 
