@@ -54,7 +54,6 @@ There are inputs available at each stage, so the code can be tested independentl
 | LHEs | Directory containing all LHEs | `/data/atlas/users/dingleyt/FCChh/LHE/lhe` |
 | Pythia8 + Delphes | All samples, including `ttbar -> bbWW` with `W -> tau` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/FullStatistics_tautau/fcc_v07/II` |
 | Pythia8 + Delphes | `ttbb` samples with inclusive `W` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ttbb_emutau_new/fcc_v07/II` |
-| Pythia8 + Delphes | `HH` sample | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ggHH_quartic_bbtata_march/fcc_v07/II/pwp8_pp_hh_k3_1_k4_1_84TeV` |
 | Processed ntuples | FCCAnalyses output ntuples | `/data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples` |
 | Scored ntuples | Scored $\tau_{\text{lep}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_lephad` |
 | Scored ntuples | Scored $\tau_{\text{had}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_hadhad` |
