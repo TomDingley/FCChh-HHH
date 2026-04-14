@@ -58,3 +58,5 @@ All fits can be run from the `run` directory, the bash scripts run the entire fi
 Diagnostic plots are found in the fit directory, taking `configs/HHH/hhh_k4Fit_hist_scenI.config` as an example, the outputs will be stored in `run/Thesis_k4Fit_scenI`. 
 
 Most of these scripts also run the plotting scripts used for the final results figures and are stored in the `plots` directory.
+
+`make_comparisons.sh` is ready-made to run on my thesis-results fits and should produce comparison plots for stat-only and scenario-I HH + HHH combination.
