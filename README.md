@@ -2,6 +2,13 @@
 
 End-to-end analysis repository for the FCC-hh triple-Higgs study: event generation -> Pythia8 + Delphes -> post-processing / plotting -> ML -> statistical interpretation.
 
+First, clone this repository with its submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/TomDingley/FCChh-HHH.git
+cd FCChh-HHH
+```
+
 ---
 
 ## Project overview
