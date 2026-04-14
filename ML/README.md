@@ -33,13 +33,13 @@ To run the pre-processing, please run:
 $\tau_{\text{had}}\tau_{\text{had}}$-channel:
 
 ```bash
-python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted --config config.json --channels hadhad_MMC
+python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples/hadhad/weighted --outdir ntuples/test_run --config config.json --channels hadhad_MMC
 ```
 
 
 $\tau_{\text{lep}}\tau_{\text{had}}$-channel:
 ```bash
-python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat_fakes/merged/weighted --config config.json --channels lephad_MMC
+python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples/lephad/weighted --outdir ntuples/test_run --config config.json --channels lephad_MMC
 ```
 
 
