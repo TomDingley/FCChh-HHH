@@ -3,19 +3,10 @@ from typing import List, Dict, Tuple
 # --------------------------------------------------
 # Dataset selection and flags
 # --------------------------------------------------
-doSignal = False
-doHiggs = False
-newprod = True
-newcard = False
-doTtbb = False
-noDecay = False
-MMC = True
-Truth= False
 
-bbaa = False
+MMC = True # Tight Preselection
+bbaa = False # bbaa selections
 
-newsamples = False
-# --- Common preselection: 4 b-jets with pT thresholds ---
 from collections import OrderedDict
 
 # ---------- tiny helpers to keep strings tidy ----------
@@ -54,10 +45,10 @@ if MMC:
         AND("n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0"),
         AND("n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0"),
         
-    ), "weighted_MMC_para_perp_vispTcal > 0",  "weighted_MMC_para_perp_vispTcal < 300", "m_h1 < 175", "m_h1 > 40", "m_h2 > 20", "m_h2 < 160")
+    ), "weighted_MMC_para_perp_vispTcal > 50",  "weighted_MMC_para_perp_vispTcal < 300", "m_h1 < 175", "m_h1 > 40", "m_h2 > 20", "m_h2 < 160")
     
     #HADHAD = AND("n_genmatch_truth_tau1 == 1", "n_genmatch_truth_tau2 == 1")
-    HADHAD = AND("n_tau_jets_medium == 2","n_b_jets_medium_tauprio == 4",  "OS_tau == 1", "n_sel_el_0p2 == 0", "n_sel_mu == 0", "weighted_MMC_para_perp_vispTcal > 0",  "weighted_MMC_para_perp_vispTcal < 300", "m_h1 < 175", "m_h1 > 40", "m_h2 > 20", "m_h2 < 160",)
+    HADHAD = AND("n_tau_jets_medium == 2","n_b_jets_medium_tauprio == 4",  "OS_tau == 1", "n_sel_el_0p2 == 0", "n_sel_mu == 0", "weighted_MMC_para_perp_vispTcal > 50",  "weighted_MMC_para_perp_vispTcal < 300", "m_h1 < 175", "m_h1 > 40", "m_h2 > 20", "m_h2 < 160",)
 
     SELECTION = {
         "Total": AND("n_jets_sel > -1"),
