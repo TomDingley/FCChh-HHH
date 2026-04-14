@@ -2,3 +2,6 @@
 	path = EventProducer
 	url = https://github.com/TomDingley/EventProducer.git
 	branch = fcchh_evtgen_updates
+[submodule "FCCAnalyses"]
+	path = FCCAnalyses
+	url = https://github.com/TomDingley/FCCAnalyses.git
