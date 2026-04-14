@@ -27,211 +27,7 @@ def AND(*parts: str) -> str:
 def OR(*parts: str) -> str:
     return "(" + ") || (".join(parts) + ")"
 
-# ---------- common preselection ----------
-BJET_PRESEL = (
-    "n_b_jets_medium_tauprio == 4",
-)
-
-# ---------- channel building blocks ----------
-LEPHAD_TAU = ("n_tau_jets_medium == 1")
-LEPHAD_ETAU = AND("n_tau_jets_medium == 1", "n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0")
-LEPHAD_MUTAU = AND("n_tau_jets_medium == 1", "n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0")
-LEPHAD_ANY = AND("n_tau_jets_medium == 1", "pT_tau1 > 20", "pT_tau2 > 20", OR(
-    AND("n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0"),
-    AND("n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0"),
-))
-LEPHAD_BJETS = AND("n_tau_jets_medium == 1", "n_b_jets_medium_tauprio == 4", OR(
-    AND("n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0"),
-    AND("n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0"),
-))
-
-HADHAD_JET    = AND("n_tau_jets_medium == 2")
-HADHAD_OS     = AND("n_tau_jets_medium == 2", "OS_tau == 1")
-HADHAD_NOLEP  = AND("n_tau_jets_medium == 2", "OS_tau == 1", "n_sel_el_0p2 == 0", "n_sel_mu == 0")
-HADHAD_2B = AND("n_tau_jets_medium == 2", "n_b_jets_medium_tauprio == 2", "n_bb_tagged_08Jets == 1", "OS_tau == 1")
-HADHAD_2LRB = AND("n_bb_tagged_08Jets == 2")
-
-HADHAD_4B = AND("n_tau_jets_medium == 2", "n_b_jets_medium_tauprio == 4", "pT_b3 > 30", "pT_b4 > 25", "OS_tau == 1")
-HADHAD_1TAU = AND("n_tautau_tagged_08Jets == 1")
-HADHAD_1TAU2B = AND("n_tautau_tagged_08Jets == 1", "n_b_jets_medium_tauprio == 2", "n_bb_tagged_08Jets == 1")
-HADHAD_BOOST_SEL = AND("n_tautau_tagged_08Jets == 1", "n_bb_tagged_08Jets == 2")
-newSel = True
-if newSel:
-    LEPHAD_JETSEL = ("n_jets_sel >= 5")
-    LEPHAD_TAU = ("n_tau_jets_medium == 1")
-    LEPHAD_EMU = AND("n_tau_jets_medium == 1", OR(
-        AND("n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0"),
-        AND("n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0"),
-    ))
-    LEPHAD_ETAU = AND("n_tau_jets_medium == 1", "n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0")
-
-    LEPHAD_PT = AND("pT_tau1 > 20", "pT_tau2 > 20")
-    HADHAD_JETSEL = ("n_jets_sel >= 6")
-
-
-    BJET_PRESEL = (
-        AND("n_b_jets_medium_tauprio == 4","pT_b1 > 40", "pT_b2 > 35", "pT_b3 > 30", "pT_b4 > 25")
-    )
-    BJET_TAG = AND("n_b_jets_medium_tauprio == 4")
-
-    # new sel
-    LEPHAD_BJETS = AND("n_tau_jets_medium == 1", "n_b_jets_medium_tauprio == 4","pT_b1 > 40", "pT_b2 > 35", "pT_b3 > 30", "pT_b4 > 25", "pT_tau1 > 20", "pT_tau2 > 20",
-    )
-    
-    LEPHAD_PTS = AND("pT_tau1 > 20", "pT_tau2 > 20")
-
-    HADHAD_JET    = AND("n_tau_jets_medium == 2")
-    HADHAD_OS     = AND("n_tau_jets_medium == 2", "OS_tau == 1")
-    HADHAD_NOLEP  = AND("n_tau_jets_medium == 2", "OS_tau == 1", "n_sel_el_0p2 == 0", "n_sel_mu == 0")
-    HADHAD     = AND("n_b_jets_medium_tauprio == 4", "pT_b1 > 40", "pT_b2 > 35", "pT_b3 > 30", "pT_b4 > 25", "n_tau_jets_medium == 2", "n_sel_el_0p2 == 0", "n_sel_mu == 0", "OS_tau == 1")
-    #HADHAD = AND("n_b_jets_medium_tauprio == 4", "n_tau_jets_medium == 2")
-
-    LEPHAD_ETAU = AND("n_tau_jets_medium == 1", "n_b_jets_medium_tauprio == 4","pT_b1 > 40", "pT_b2 > 35", "pT_b3 > 30", "pT_b4 > 25", "n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0","pT_tau1 > 20", "pT_tau2 > 20")
-    
-    LEPHAD_MUTAU = AND("n_tau_jets_medium == 1", "n_b_jets_medium_tauprio == 4","pT_b1 > 40", "pT_b2 > 35", "pT_b3 > 30", "pT_b4 > 25", "n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0", "pT_tau1 > 20", "pT_tau2 > 20")
-
-LEPHAD_ANY = AND("n_tau_jets_medium == 1", OR(
-    AND("n_sel_el_0p2 == 1", "OS_taue == 1", "n_sel_mu == 0"),
-    AND("n_sel_mu == 1", "OS_taumu == 1", "n_sel_el_0p2 == 0"),
-))
-
-HADHAD_TAUS    = AND( "n_tau_jets_medium == 2", "OS_tau == 1", "n_sel_el_0p2 ==0", "n_sel_mu == 0")
-
-# --- boosted large-R objects ---
-# tau tau resolved:
-# --- LR-bb + resolved ττ (semi-boosted bb) ---
-HADHAD_1BB      = AND(
-    HADHAD_TAUS,
-    "n_b_jets_removed == 2",
-    "n_bb_tagged_08Jets == 1",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-LEPHAD_1BB      = AND(
-    LEPHAD_ANY,
-    "n_b_jets_removed == 2",
-    "n_bb_tagged_08Jets == 1",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-HADHAD_2BB      = AND(
-    HADHAD_TAUS,
-    "n_b_jets_removed == 0",
-    "n_bb_tagged_08Jets == 2",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-LEPHAD_2BB      = AND(
-    LEPHAD_ANY,
-    "n_b_jets_removed == 0",
-    "n_bb_tagged_08Jets == 2",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-HADHAD_0BB      = AND(
-    HADHAD_TAUS,
-    "n_b_jets_removed == 4",
-    "n_bb_tagged_08Jets == 0",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-HADHAD_OLDANA      = AND(HADHAD_TAUS,
-    "n_b_jets_medium_tauprio == 4"
-)
-
-HADHAD_OLDANA_FAILEDMMC      = AND(HADHAD_OLDANA,
-    "mass_MH_MMC_unweighted < 20"
-)
-
-HADHAD_OLDANA_PASSMMC      = AND(HADHAD_OLDANA,
-    "mass_MH_MMC_unweighted > 20"
-)
-
-
-HADHAD_OLDANA_DR      = AND(HADHAD_TAUS,
-    "n_b_jets_medium_tauprio == 4", "m_h1 > 25", "m_h1 < 175", "m_h1 > 40", "m_h2 > 20", "m_h2 < 160"
-)
-
-HADHAD_OLDANA_SQUARE      = AND(HADHAD_TAUS,
-    "n_b_jets_medium_tauprio == 4",  "m_h1_squaremass > 70", "m_h1_squaremass < 160", "m_h2_squaremass > 60", "m_h2_squaremass < 175"
-)
-
-LEPHAD_0BB      = AND(
-    LEPHAD_ANY,
-    "n_b_jets_removed == 4",
-    "n_bb_tagged_08Jets == 0",     # LR bb present
-    "n_tautau_tagged_08Jets == 0" # no LR ττ (avoid overlap with 2LRB / 1TAU cats)
-)
-
-LEPHAD_OLDANA     = AND(
-    LEPHAD_ANY,
-    "n_b_jets_medium_tauprio == 4", "pT_b1 > 40", "pT_b2 > 35", 
-    "pT_b3 > 30", "pT_b4 > 25"
-)
-
-HADHAD_2LRB1LRTAU    = AND(
-    "n_bb_tagged_08Jets == 2",     # ≥1 LR bb-tagged jet
-    "n_tautau_tagged_08Jets == 1" # ≥1 LR ττ-tagged jet
-)
-
-HADHAD_2LRB    = AND(
-    "n_bb_tagged_08Jets == 2",     # ≥1 LR bb-tagged jet
-    "n_tau_jets_medium == 2", "OS_tau == 1",
-    "n_tautau_tagged_08Jets == 0" # ≥1 LR ττ-tagged jet
-)
-
-# --- fully resolved (2τ + ≥4b) ---
-HADHAD_4B      = AND(
-    "n_tau_jets_medium == 2", "OS_tau == 1",
-    "n_b_jets_medium_tauprio == 4", "pT_b3 > 30", "pT_b4 > 25",
-    "n_bb_tagged_08Jets == 0",      # no LR objects
-    "n_tautau_tagged_08Jets == 0"
-)
-
-# --- LR-tautau + resolved bs (semi-boosted tau) ---
-HADHAD_1TAU    = AND(
-    "n_tautau_tagged_08Jets == 1", 
-    "n_bb_tagged_08Jets == 0",      # no LR bb (keeps it exclusive from 2LRB/2B)
-    "n_b_jets_medium_tauprio == 4", "pT_b3 > 30", "pT_b4 > 25"
-)
-
-# --- LR(tautau) + exactly 2 resolved b’s ---
-HADHAD_1TAU2B  = AND(
-    "n_tautau_tagged_08Jets == 1", 
-    "n_bb_tagged_08Jets == 1",      # avoid overlap with 2LRB
-    "n_b_jets_medium_tauprio == 2"
-)
-
-HADHAD            = AND( "n_sel_el_0p2 == 0", "n_sel_mu == 0",
-                        OR(HADHAD_0BB, HADHAD_1BB, HADHAD_2BB))
-
-LEPHAD            = AND(
-                        OR(LEPHAD_0BB, LEPHAD_1BB, LEPHAD_2BB))
-
-HADHAD_BB         = AND("pT_b1 > 40", "pT_b2 > 35", "n_sel_el_0p2 == 0", "n_sel_mu == 0",
-                        OR(HADHAD_2B, HADHAD_2LRB))     # bb-focused (resolved or semi-boosted)
-
-HADHAD_TAUTAU     = AND("pT_b1 > 40", "pT_b2 > 35", "n_sel_el_0p2 == 0", "n_sel_mu == 0",
-                        OR(HADHAD_1TAU, HADHAD_1TAU2B))  # tau-boost
-
-HADHAD_RESOLVED   = AND("pT_b1 > 40", "pT_b2 > 35", "n_sel_el_0p2 == 0", "n_sel_mu == 0",
-                        HADHAD_4B)
-
-
-HADHAD_RESOLVED_DR   = AND(HADHAD_4B, "m_h1 > 40", "m_h1 < 175", "m_h1 > 40", "m_h2 > 30" "m_h2 < 175")
-HADHAD_RESOLVED_SQUARE   = AND(HADHAD_4B, "m_h1_squaremass > 70", "m_h1_squaremass < 175", "m_h2_squaremass > 70", "m_h2_squaremass < 175")
-
-HADHAD_BOOST      = AND("n_sel_el_0p2 == 0", "n_sel_mu == 0",
-                        HADHAD_2LRB1LRTAU)  # fully boosted (LR-bb & LR-ττ)
-
-TRUTHTAU = AND("pT_reco_matched_tau_tau_jet_2 > 0", "pT_reco_matched_tau_tau_jet_1 > 0")
-TRUTH4B = AND("pT_reco_matched_b_jet_1 > 0", "pT_reco_matched_b_jet_2 > 0", "pT_reco_matched_b_jet_3 > 0", "pT_reco_matched_b_jet_4 > 0")
-TRUTHALL = AND(TRUTHTAU, TRUTH4B)
-
-
-HH4BMATCH = AND("n_b_jets_medium_tauprio == 4", "n_reco_matched_B_hadrons == 4")
-
-
+#
 doNN = False
 if doNN:
         HADHAD     = AND("mlp_score > 0.0")
@@ -248,31 +44,7 @@ if doNN:
 else:
     SELECTION = {
         "Total":        AND("njets > 0"),
-        "bbaa": AND("m_yy > 122", "m_yy < 127", "m_bb < 160"),
-        "LepHad":       AND(LEPHAD),
-        "HadHad":       AND(HADHAD),
-        "HadHad_bb":    AND(HADHAD_BB),
-        "HadHad_tautau": AND(HADHAD_TAUTAU),
-        "HadHad_boosted": OR(HADHAD_1BB, HADHAD_2BB),
-        "Combined":     OR(HADHAD, LEPHAD),
-        "HadHad_resolved": AND(HADHAD_0BB),
-        "HadHad_1BB": AND(HADHAD_1BB),
-        "HadHad_2BB": AND(HADHAD_2BB),
-        "LepHad_resolved": AND(LEPHAD_0BB),
-        "LepHad_1BB": AND(LEPHAD_1BB),
-        "LepHad_2BB": AND(LEPHAD_2BB),
-        "HadHad_old": AND(HADHAD_OLDANA),
-        "HadHad_old_dRCuts": AND(HADHAD_OLDANA_DR),
-        "HadHad_old_squareCuts": AND(HADHAD_OLDANA_SQUARE),
-        "HadHad_resolved_dRCuts": AND(HADHAD_RESOLVED_DR),
-        "HadHad_resolved_squareCuts": AND(HADHAD_RESOLVED_SQUARE),
-        "LepHad_old": AND(LEPHAD_OLDANA),
-        "TruthRecoTau": AND(TRUTHTAU),
-        "TruthRecob": AND(TRUTH4B),
-        "TruthRecoall": AND(TRUTHALL),
-        "HH4bMatch": AND(HH4BMATCH),
-        "HadHad_failedMMC": AND(HADHAD_OLDANA_FAILEDMMC),
-        "HadHad_passMMC": AND(HADHAD_OLDANA_PASSMMC)
+        "bbaa": AND("m_yy > 122", "m_yy < 127", "m_bb < 160")
     }
 
         
@@ -294,13 +66,6 @@ if MMC:
     }
 
 
-if Truth:
-    HADHAD = AND("pT_B_had_1 > 25", "pT_B_had_2 > 25", "pT_B_had_3 > 25", "pT_B_had_4 > 25", "n_visible_tauhad == 2", "pT_visible_tauhad_1 > 25", "pT_visible_tauhad_2 > 25")
-    SELECTION = {
-        "Total": AND("n_jets_sel > -1"),
-        "LepHad": AND(LEPHAD),
-        "HadHad": AND(HADHAD)        
-    }
 
 print(f"SELECTION: {SELECTION}")
 
@@ -375,13 +140,6 @@ if bbaa:
     
 SIGNAL = processes[0]
 BACKGROUNDS = processes[1:]
-
-# --------------------------------------------------
-# Selection and variables
-# --------------------------------------------------
-
-
-# (n_tau_jets_medium >= 1 and (n_sel_el_0p2 >= 1 or n_sel_mu >= 1) and (OS_taue or OS_taumu))
 
 
 
