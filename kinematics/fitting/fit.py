@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import uproot
-from tools2 import numeric, build_mask_from_selection
+from tools import numeric, build_mask_from_selection
 from config import SIGNAL, BACKGROUNDS, SELECTION, N_BINS_1D, XLIM_MAP, LUMINOSITY_PB
 from scipy.optimize import minimize_scalar
 from aesthetics import process_labels, process_colours, LABEL_MAP, banner, banner_heatmaps
@@ -96,7 +96,7 @@ def compute_asimov_significance(
         if (s + b).ptp() > 1e3:
             ax.set_yscale("log")
         ax.legend(frameon=False, loc="upper right")
-        banner(ax, f"Asimov Z = {Z:.2f}σ")
+        banner(ax, fr"Asimov $Z$ = {Z:.2f}$\sigma$")
 
         outpath = outdir / f"asimov_dist_{var}_k3_{k3:.1f}_k4_{k4:.1f}.pdf"
         fig.savefig(outpath, bbox_inches="tight")

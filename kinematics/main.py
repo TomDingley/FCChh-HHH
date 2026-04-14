@@ -23,12 +23,12 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
         
         mask = build_mask_from_selection(tree, SELECTION[channel])
 
-        plot_1d_histograms(proc, tree, mask, outdir, comment, channel)
+        #plot_1d_histograms(proc, tree, mask, outdir, comment, channel)
 
-        if overlay_histogram:
-            overlay_histogram(tree, mask, proc, outdir, comment, channel)
-        if plot_heatmaps:
-            plot_heatmaps(tree, mask, proc, outdir, comment, channel)
+        #if overlay_histogram:
+        #    overlay_histogram(tree, mask, proc, outdir, comment, channel)
+        #if plot_heatmaps:
+        #    plot_heatmaps(tree, mask, proc, outdir, comment, channel)
 
         plot_hist2d_heatmaps(
             tree=tree,
@@ -60,7 +60,7 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
                 weight_branch=None,
                 lumi_scale=None,
             bins=10,
-            normalize=shape_normalize,
+            normalize=True,
         )
         
         if compDir:
@@ -92,8 +92,7 @@ def cli():
     isTest = args.test
     compDir = args.compare_dir
     shape_var = args.shape_var.strip() if args.shape_var else ""
-    shape_outdir = Path(args.outdir + "/" + args.shape_outdir).expanduser().resolve() if args.shape_outdir else None
-    shape_normalize = not args.shape_no_normalize
+    shape_outdir = Path(args.outdir + "/" + "shape")
     out_base.mkdir(parents=True, exist_ok=True)
     fit_dir = out_base / "fit"
     fit_dir.mkdir(parents=True, exist_ok=True)
@@ -154,7 +153,7 @@ def cli():
         for proc, fpath in files.items():
             print("[*]", proc)
             
-            process_file(proc, fpath, out_base / proc, comment, compDir, vars_to_stack, chan, shape_var, shape_outdir, shape_normalize)
+            process_file(proc, fpath, out_base / proc, comment, compDir, vars_to_stack, chan, shape_var, shape_outdir, False)
             
         doPlots = True
         doWeight = True
