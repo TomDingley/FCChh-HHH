@@ -1,6 +1,6 @@
 # FCC Triple Higgs 
 
-End-to-end analysis repository for the FCC-hh triple-Higgs study: event generation -> Delphes -> Pythia8 -> post-processing / plotting -> ML -> statistical interpretation.
+End-to-end analysis repository for the FCC-hh triple-Higgs study: event generation -> Pythia8 + Delphes -> post-processing / plotting -> ML -> statistical interpretation.
 
 ---
 
@@ -8,49 +8,52 @@ End-to-end analysis repository for the FCC-hh triple-Higgs study: event generati
 
 **Goal:** constrain Higgs self-couplings (e.g. $\kappa_3$, $\kappa_4$) using $HHH$ at the FCC-hh, with an analysis pipeline spanning:
 
-- Generator-level production (MadGraph / POWHEG) [Work-in-progress]
-- Parton-shower + detector simulation Pythia8 [Work-in-progress]
-- Ntuple production with FCCAnalyses [Work-in-progress]
-- Plotting repository / analysis optimisations [Up-to-date]
-- Machine learning training / validation / application [Up-to-date]
-- Statistical interpretation and limit/contour extraction, both with yields-approximation (in Kinematics) and TRExFitter [Up-to-date]
 
-There are READMEs in each directory with instructions!
+
+| Step | Directory | Status | Notes |
+|---:|---|---|---|
+| 1 | `EventProducer` | WIP | Event generation, showering, Delphes |
+| 2 | `FCCAnalyses` | WIP | Ntuple production |
+| 3 | `kinematics` | Up to date | Plots & misc functions.  |
+| 4 | `ML` | Up to date | Training, validation, scoring |
+| 5 | `TRExFitter` | Up to date | Statistical interpretation & results |
+
+
+There are READMEs in each directory with instructions:
+- [`EventProducer`](EventProducer)
+- [`FCCAnalyses`](FCCAnalyses)
+- [`kinematics`](kinematics)
+- [`ML`](ML)
+- [`TRExFitter`](TRExFitter)
+
+
 If you're using the repository with NTuples already generated, all you need are the kinematics, ML and TRExFitter directories.
+
+
+Steps 1 and 2 are by far the most intensive and full production of Delphes ROOT files should take $\mathcal{O}(1-2)$ days on the batch system and a similar amount of time for the NTuple production (MMC is computationally very slow here). The last three are doable within a day, depending on the number of Optuna hyperparameter scans you choose to run. 
+
 
 ---
 
 There are various inputs that are provided at each step so the code can be tested at each stage, independently of the preceeding one:
 
-### LHEs:
+## Available Inputs
 
-`/data/atlas/users/dingleyt/FCChh/LHE/lhe`
+There are inputs available at each stage, so the code can be tested independently of the preceding step.
 
-A number of processes are contained in this sub-directory, with a few samples that were used for testing purposes.
+<details>
+<summary>Absolute paths for various steps!</summary>
 
-### Pythia + Delphes:
+| Step | Sample / purpose | Path |
+|---|---|---|
+| LHEs | Directory containing all LHEs | `/data/atlas/users/dingleyt/FCChh/LHE/lhe` |
+| Pythia8 + Delphes | All samples, including `ttbar -> bbWW` with `W -> tau` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/FullStatistics_tautau/fcc_v07/II` |
+| Pythia8 + Delphes | `ttbb` samples with inclusive `W` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ttbb_emutau_new/fcc_v07/II` |
+| Pythia8 + Delphes | `HH` sample | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ggHH_quartic_bbtata_march/fcc_v07/II/pwp8_pp_hh_k3_1_k4_1_84TeV` |
+| Processed ntuples | FCCAnalyses output ntuples | `/data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples` |
+| Scored ntuples | Scored $\tau_{\text{lep}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_lephad` |
+| Scored ntuples | Scored $\tau_{\text{had}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_hadhad` |
+| Fit-ready inputs | TRExFitter inputs | `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis` |
+| Fit-ready inputs | TRExFitter $b\bar{b}\gamma\gamma$ inputs | `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis_bbaa` |
 
-All samples (with ttbar -> bbWW, with Ws to taus):
-
-`/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/FullStatistics_tautau/fcc_v07/II`
-
-ttbb samples with inclusive W decays:
-`/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ttbb_emutau_new/fcc_v07/II`
-
-HH sample:
-`/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ggHH_quartic_bbtata_march/fcc_v07/II/pwp8_pp_hh_k3_1_k4_1_84TeV`
-
-### Processed ntuples:
-`/data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples`
-
-### Scored ntuples:
-`/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_lephad`
-`/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_hadhad`
-
-### Fit-ready inputs:
-`/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis`
-
-`/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis_bbaa`
-
-
-With these paths you should hopefully be able to run the full analysis chain. 
+</details>
