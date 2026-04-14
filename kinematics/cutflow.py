@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import awkward as ak
 import uproot
+from aesthetics import LABEL_MAP as _VAR_LABEL_MAP
 
 from aesthetics import process_labels
 # ---------------------------------------------------------------------
@@ -142,11 +143,8 @@ def _iter_arrays(process_files: List[str],
         yield arrays
 
 
-# Try to import pretty labels; fall back to empty map if unavailable.
-try:
-    from aesthetics import LABEL_MAP as _VAR_LABEL_MAP
-except Exception:
-    _VAR_LABEL_MAP = {}
+
+
 
 _LATEX_RESERVED = {"True", "False", "np", "abs", "min", "max", "clip"}
 
@@ -365,9 +363,6 @@ def _cutflow_for_process(files: List[str],
     return sums.tolist()
 
 
-# --- add near the other helpers ---
-
-# --- add near your other helpers ---
 import ast
 
 def _strip_outer_parens(s: str) -> str:

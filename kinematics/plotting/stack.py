@@ -6,7 +6,7 @@ import awkward as ak
 
 from config import XLIM_MAP, N_BINS_1D, SIGNAL, BACKGROUNDS, LUMINOSITY_PB, SELECTION, HADHAD
 from aesthetics import LABEL_MAP, process_labels, process_colours, banner, channel_colors, channel_labels
-from tools2 import  numeric, get_weights, build_mask_from_selection
+from tools import  numeric, get_weights, build_mask_from_selection
 
 import matplotlib.gridspec as gridspec
     
@@ -704,7 +704,7 @@ def normalised_total_background_plot(
     )
 
     ymax = max(float(np.max(bkg_norm)), float(np.max(sig_norm)))
-    ax.set_ylim(0, 1.5 * ymax if ymax > 0 else 1.0)
+    ax.set_ylim(0.001, 1.5 * ymax if ymax > 0 else 1.0)
     ax.set_xlim(edges[0], edges[-1])
     ax.set_ylabel("Normalised events", loc="top")
     ax.tick_params(axis='both', direction='in', top=True, right=True)
@@ -730,7 +730,7 @@ def normalised_total_background_plot(
     ax_ratio.set_xlabel(LABEL_MAP.get(var, var), loc="right")
     ax_ratio.set_xlim(edges[0], edges[-1])
     ax_ratio.tick_params(axis='both', direction='in', top=True, right=True)
-    ax_ratio.set_ylim(0, 6.5)
+    ax_ratio.set_ylim(0, 3)
 
     out = outdir / f"{channel}/normalised_total_background/{var}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)

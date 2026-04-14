@@ -9,7 +9,7 @@ newprod = True
 newcard = False
 doTtbb = False
 noDecay = False
-MMC = False
+MMC = True
 Truth= False
 
 bbaa = False
@@ -232,7 +232,7 @@ TRUTHALL = AND(TRUTHTAU, TRUTH4B)
 HH4BMATCH = AND("n_b_jets_medium_tauprio == 4", "n_reco_matched_B_hadrons == 4")
 
 
-doNN = True
+doNN = False
 if doNN:
         HADHAD     = AND("mlp_score > 0.0")
         LEPHAD     = AND("mlp_score > 0.0")

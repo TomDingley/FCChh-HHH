@@ -10,12 +10,12 @@ from config import XLIM_MAP, N_BINS_1D, OVERLAY_PAIRS
 from aesthetics import LABEL_MAP, process_labels, process_colours, banner,  banner_heatmaps
 from typing import Dict
 from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS
-from tools2 import get_weights, numeric, build_mask_from_selection, BASIS_KEYS, basis_funcs, build_moments
+from tools import get_weights, numeric, build_mask_from_selection, BASIS_KEYS, basis_funcs, build_moments
 from aesthetics import LABEL_MAP
 
 from matplotlib.colors import Normalize, TwoSlopeNorm
 
-def compare_signal_eft_points(
+def compare_signal_reweight_points(
     var: str,
     files: dict[str, Path],
     outdir: Path,
@@ -134,14 +134,14 @@ def compare_signal_eft_points(
     ax_ratio.axhline(1.0, color="black", linestyle="--", lw=1)
     #ax_ratio.grid(True, linestyle=":", linewidth=0.5)
 
-    out = outdir / f"signal_EFT_variation/{var}_ratio_{channel}.pdf"
+    out = outdir / f"signal_reweight_variation/{var}_ratio_{channel}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print("[✓]", out)
     
     
-def heatmap_signal_eft_efficiency(
+def heatmap_signal_reweight_efficiency(
     files: dict[str, Path],
     outdir: Path,
     k3_grid: np.ndarray,
@@ -151,7 +151,7 @@ def heatmap_signal_eft_efficiency(
 ):
     """
     Make a 2D heatmap of the efficiency for events with isRecoMatched==6
-    across (k3, k4) EFT points, normalised to total signal yield.
+    across (k3, k4) points, normalised to total signal yield.
     """
 
     from config import SIGNAL
@@ -208,7 +208,7 @@ def heatmap_signal_eft_efficiency(
     ax.set_xlabel(r"$\kappa_3$", loc='right')
     ax.set_ylabel(r"$\kappa_4$", loc='top')
 
-    out = outdir / f"signal_EFT_efficiency/isRecoMatched_efficiency_{channel}.pdf"
+    out = outdir / f"signal_reweight_efficiency/isRecoMatched_efficiency_{channel}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -216,7 +216,7 @@ def heatmap_signal_eft_efficiency(
 
 
 
-def heatmap_signal_eft_efficiency_presel(
+def heatmap_signal_reweight_efficiency_presel(
     files: Dict[str, Path],
     outdir: Path,
     k3_grid: np.ndarray,
@@ -270,7 +270,7 @@ def heatmap_signal_eft_efficiency_presel(
 
     # --- Plot ---
     outdir = Path(outdir)
-    out = outdir / f"signal_EFT_efficiency/selection_efficiency_{channel}.pdf"
+    out = outdir / f"signal_reweight_efficiency/selection_efficiency_{channel}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -296,10 +296,10 @@ def heatmap_signal_eft_efficiency_presel(
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
 
-    print(f"[✓] EFT selection-efficiency heatmap saved to {out}")
+    print(f"[✓] Reweighted selection-efficiency heatmap saved to {out}")
 
 
-def heatmap_signal_eft_xsm_after_selection(
+def heatmap_signal_reweight_xsm_after_selection(
     files: Dict[str, Path],
     outdir: Path,
     k3_grid: np.ndarray,
@@ -442,18 +442,18 @@ def heatmap_signal_eft_xsm_after_selection(
     banner_heatmaps(ax, comment)
 
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label("xSM (selected)", loc="top")
+    cbar.set_label(r"$\frac{\sigma\left(\kappa_3,\kappa_4\right)}{\sigma\left(\text{SM}\right)}$", loc="top")
 
     ax.set_xlabel(r"$\kappa_3$", loc="right")
     ax.set_ylabel(r"$\kappa_4$", loc="top")
 
     outdir = Path(outdir)
-    out = outdir / f"signal_EFT_xsm/xsm_k3k4_{channel}.pdf"
+    out = outdir / f"signal_reweight_xsm/xsm_k3k4_{channel}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
 
     
     fig.savefig(out, bbox_inches="tight")
-    out = outdir / f"signal_EFT_xsm/xsm_k3k4_{channel}.png"
+    out = outdir / f"signal_reweight_xsm/xsm_k3k4_{channel}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -525,13 +525,13 @@ def heatmap_signal_eft_xsm_after_selection(
     banner_heatmaps(ax, comment)
 
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label("xSM(selected) / xSM(no selection)", loc="top")
+    cbar.set_label(r"$\frac{N(\text{SR})}{N(\text{Tight Presel})}$", loc="top")
 
     ax.set_xlabel(r"$\kappa_3$", loc="right")
     ax.set_ylabel(r"$\kappa_4$", loc="top")
 
-    ratio_pdf = outdir / f"signal_EFT_xsm/xsm_k3k4_before_after_ratio_{channel}.pdf"
-    ratio_png = outdir / f"signal_EFT_xsm/xsm_k3k4_before_after_ratio_{channel}.png"
+    ratio_pdf = outdir / f"signal_reweight_xsm/xsm_k3k4_before_after_ratio_{channel}.pdf"
+    ratio_png = outdir / f"signal_reweight_xsm/xsm_k3k4_before_after_ratio_{channel}.png"
     ratio_pdf.parent.mkdir(parents=True, exist_ok=True)
 
     fig.savefig(ratio_pdf, bbox_inches="tight")
@@ -539,7 +539,7 @@ def heatmap_signal_eft_xsm_after_selection(
     plt.close(fig)
     print(f"[✓] xSM before/after ratio heatmap saved to {ratio_png}")
     
-def heatmap_signal_eft_efficiency_LR(
+def heatmap_signal_reweight_efficiency_LR(
     files: dict[str, Path],
     outdir: Path,
     k3_grid: np.ndarray,
@@ -624,7 +624,7 @@ def heatmap_signal_eft_efficiency_LR(
     #if comment:
     #    ax.set_title(comment, fontsize=10)
 
-    out = outdir / f"signal_EFT_efficiency/isRecoMatched_efficiency_{channel}_LR.pdf"
+    out = outdir / f"signal_reweight_efficiency/isRecoMatched_efficiency_{channel}_LR.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -718,7 +718,7 @@ def heatmap_signal_pairing_mean(
     #if comment:
     #    ax.set_title(comment, fontsize=10)
 
-    out = outdir / f"signal_EFT_efficiency/4bMatching_{type}_{channel}_LR.pdf"
+    out = outdir / f"signal_reweight_efficiency/4bMatching_{type}_{channel}_LR.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
@@ -727,7 +727,7 @@ def heatmap_signal_pairing_mean(
     return out, heatmap
     
 
-def heatmap_signal_eft_mean(
+def heatmap_signal_reweight_mean(
     var: str,
     files: dict[str, Path],
     outdir: Path,
@@ -738,7 +738,7 @@ def heatmap_signal_eft_mean(
 ):
     """
     Make a 2D heatmap showing how the mean value of a given observable (e.g. Higgs_HT)
-    varies across (k3, k4) EFT points.
+    varies across (k3, k4) Reweighted points.
     """
 
     from config import SIGNAL, XLIM_MAP
@@ -808,14 +808,14 @@ def heatmap_signal_eft_mean(
     ax.set_ylabel(r"$\kappa_4$", loc='top')
     banner_heatmaps(ax)
 
-    out = outdir / f"signal_EFT_heatmap/{var}_mean_{channel}.pdf"
+    out = outdir / f"signal_reweight_heatmap/{var}_mean_{channel}.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print("[✓]", out)
     
     
-def heatmap_signal_eft_mean_with_slices(
+def heatmap_signal_reweight_mean_with_slices(
     var: str,
     files: dict[str, Path],
     outdir: Path,
@@ -844,7 +844,7 @@ def heatmap_signal_eft_mean_with_slices(
         selection = SELECTION[channel]
         mask = build_mask_from_selection(tree, selection)
 
-        # Load observable and EFT basis weights
+        # Load observable and Reweighted basis weights
         arr_all = numeric(tree[var].array(library="ak")[mask])
 
         basis_keys = [
@@ -892,7 +892,7 @@ def heatmap_signal_eft_mean_with_slices(
     ax.set_ylabel(r"$\kappa_4$", loc="top")
     banner_heatmaps(ax)
 
-    out2d = outdir / f"signal_EFT_heatmap/{var}_mean.pdf"
+    out2d = outdir / f"signal_reweight_heatmap/{var}_mean.pdf"
     out2d.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out2d, bbox_inches="tight")
     plt.close(fig)
@@ -931,7 +931,7 @@ def heatmap_signal_eft_mean_with_slices(
         pad = 0.05 * max(1e-12, rmax - rmin)
         rax.set_ylim(rmin - pad, rmax + pad)
 
-    out_k3 = outdir / f"signal_EFT_heatmap/{var}_mean_slice_k3.pdf"
+    out_k3 = outdir / f"signal_reweight_heatmap/{var}_mean_slice_k3.pdf"
     fig.savefig(out_k3, bbox_inches="tight")
     plt.close(fig)
 
@@ -949,7 +949,7 @@ def heatmap_signal_eft_mean_with_slices(
     m = np.isfinite(mu) & np.isfinite(k4_vals) & (tot_w > 0)
     x = k4_vals[m]
     y = mu[m]
-    w = tot_w[m]  # weights ~ total yield at each EFT point
+    w = tot_w[m]  # weights ~ total yield at each Reweighted point
 
     # --- Linear least-squares for rational form ---
     # y = (a + b x + c x^2) / (1 + d x + e x^2)
@@ -980,7 +980,7 @@ def heatmap_signal_eft_mean_with_slices(
                    "c": float(perr[2]), "d": float(perr[3]), "e": float(perr[4])},
         "chi2": float(chi2), "ndof": int(ndof), "chi2_ndof": float(chi2/ndof)
     }
-    out_fit = outdir / f"signal_EFT_heatmap/{var}_mean_slice_k4_fit.json"
+    out_fit = outdir / f"signal_reweight_heatmap/{var}_mean_slice_k4_fit.json"
     with open(out_fit, "w") as fh:
         json.dump(fit_json, fh, indent=2)
 
@@ -1018,6 +1018,6 @@ def heatmap_signal_eft_mean_with_slices(
         pad = 0.05 * max(1e-12, rmax - rmin)
         rax.set_ylim(rmin - pad, rmax + pad)
 
-    out_k4 = outdir / f"signal_EFT_heatmap/{var}_mean_slice_k4_with_fit.pdf"
+    out_k4 = outdir / f"signal_reweight_heatmap/{var}_mean_slice_k4_with_fit.pdf"
     fig.savefig(out_k4, bbox_inches="tight")
     plt.close(fig)

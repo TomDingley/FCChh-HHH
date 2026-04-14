@@ -19,7 +19,7 @@ import uproot
 
 from config import SELECTION, N_BINS_1D, XLIM_MAP, LUMINOSITY_PB
 from aesthetics import LABEL_MAP, banner, channel_labels, banner_heatmaps
-from tools2 import build_mask_from_selection
+from tools import build_mask_from_selection
 
 
 def _strip_outer_parens(s: str) -> str:

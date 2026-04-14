@@ -7,7 +7,7 @@ from pathlib import Path
 
 from config import SIGNAL, XLIM_MAP, N_BINS_1D, SELECTION
 from aesthetics import LABEL_MAP, banner
-from tools2 import get_weights,numeric, build_mask_from_selection
+from tools import get_weights,numeric, build_mask_from_selection
 
 
 from scipy.stats import norm

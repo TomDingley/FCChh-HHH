@@ -105,6 +105,9 @@ LABEL_MAP: Dict[str, str] = {
     "pT_bb": r"Leading $bb$ $p_T$ [GeV]",
     "pT_tau1": r"$p_T(\tau_1)$ [GeV]",
     "pT_tau2": r"$p_T(\tau_2)$ [GeV]",
+    "pT_tau1_tlv_LH": r"$p_T(\tau_1)$ [GeV]",
+    "pT_tau2_tlv_LH": r"$p_T(\tau_2)$ [GeV]",
+
     "pt_MC_immediate_Higgs_daughters_1": r"Truth leading Hbb $p_T$ [GeV]",
     "pT_Htautau_cand": r"$p_T(H(\tau\tau))$ [GeV]",
     "eta_Htautau_cand": r"$\eta(H(\tau\tau))$",
@@ -206,8 +209,8 @@ LABEL_MAP: Dict[str, str] = {
     "n_genmatch_truth_tau1": r"$N_{\mathrm{genmatch}}^{\tau_{1}}$",
     "n_genmatch_truth_tau2": r"$N_{\mathrm{genmatch}}^{\tau_{2}}$",
     "unweighted_MMC_para_perp": r"Unweighted MMC [$\sigma_{\parallel}$]",
-    "unweighted_MMC_para_perp_vispTcal": r"Unweighted MMC (visible pT)",
-    "weighted_MMC_para_perp_vispTcal": r"MMC mass ($m_{\tau\tau}^{\text{MMC}})$ [GeV]",
+    "unweighted_MMC_para_perp_vispTcal": r"Unweighted $m_{\tau\tau}^{\text{MMC}}$ [GeV]",
+    "weighted_MMC_para_perp_vispTcal": r"$m_{\tau\tau}^{\text{MMC}}$ [GeV]",
     "weighted_MMC_para_perp": r"Weighted MMC [$\sigma_{\parallel}$]",
     "full_mode_vispTcal": r"Fully weighted MMC (visible pT)]",
 
@@ -257,7 +260,7 @@ LABEL_MAP: Dict[str, str] = {
 }
 
 process_labels: Dict[str, str] = {
-    "mgp8_pp_hhh_84TeV": r"$HHH$ 84 TeV",
+    "mgp8_pp_hhh_84TeV": r"$HHH$",
     "mgp8_pp_hhh_14TeV": r"$HHH$ 14 TeV",
     "mgp8_pp_hhh_84TeV_fixcard": r"$hhh \rightarrow 4b\,2\tau$ [New Card]",
     "mgp8_pp_ttbb_4f_84TeV": r"$t\bar{t}b\bar{b}$",
@@ -283,7 +286,7 @@ process_labels: Dict[str, str] = {
 
 process_colours: Dict[str, str] = {
     "mgp8_pp_hhh_84TeV": "black",         # signal
-    "mgp8_pp_hhh_84TeV_fixcard": "blue",         # signal
+    "mgp8_pp_hhh_84TeV_fixcard": "blue",        
     "mgp8_pp_hhh_14TeV": "blue",        
     "pwp8_pp_hh_k3_1_k4_1_84TeV": "brown",
     "mgp8_pp_zzz_5f_84TeV": "#80CDE8",    
@@ -299,11 +302,11 @@ process_colours: Dict[str, str] = {
     "mgp8_pp_hhjj_5f_84TeV": "#ACACAC",
     "mgp8_pp_h_5f_84TeV":"gray",
 
-    # signal (hh): strong, dark, “primary” colour
+    # signal (hh)
     "pwp8_pp_hh_k3_1_k4_1_84TeV": "#0072B2",  # blue
 
     # backgrounds
-    "mgp8_pp_h012j_5f_84TeV":    "#D55E00",  # vermillion (orange-red)
+    "mgp8_pp_h012j_5f_84TeV":    "#D55E00",  # (orange-red)
     "mgp8_pp_tth01j_5f_84TeV":   "#CC79A7",  # reddish purple
     "mgp8_pp_jjaa_5f_84TeV":     "#E69F00",  # orange 
     "mgp8_pp_vbf_h01j_5f_84TeV":"#009E73",  # bluish green

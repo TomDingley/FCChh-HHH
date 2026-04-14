@@ -28,7 +28,7 @@ from typing import Dict, Iterable, Set
 CUTFLOW = {
     "LepHad": [
         {"label": "Total",      "expr": "True"},
-        {"label": "Lep–Had",    "expr": "LEPHAD"},  # replace with your selection
+        {"label": "Lep-Had",    "expr": "LEPHAD"},  # replace with your selection
         # Examples (uncomment/adapt):
         # {"label": "Njet ≥ 5",   "expr": "jets_n >= 5"},
         # {"label": "≥2 b-jets",  "expr": "bjets_n >= 2"},
@@ -37,7 +37,7 @@ CUTFLOW = {
     ],
     "HadHad": [
         {"label": "Total",     "expr": "True"},
-        {"label": "Had–Had",   "expr": "HADHAD"},    # replace with your selection
+        {"label": "Had-Had",   "expr": "HADHAD"},    # replace with your selection
     ],
     "Combined": [
         {"label": "Total",                "expr": "True"},

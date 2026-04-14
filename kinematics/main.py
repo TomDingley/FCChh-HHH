@@ -4,7 +4,7 @@ from contextlib import ExitStack
 import uproot
 import numpy as np
 from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS, LUMINOSITY_PB
-from tools2 import numeric, build_mask_from_selection
+from tools import numeric, build_mask_from_selection
 from cutflow import write_cutflow_weighted_summary, write_region_yield_summary
 
 
@@ -14,7 +14,7 @@ from plotting.shape_cutflow import plot_shape_cutflow
 from plotting.heatmaps import plot_heatmaps, plot_hist2d_heatmaps
 from plotting.stack import normalised_overlay_plot, stack_plot_weight, normalised_overlay_plot_chan, normalised_slice_plot, raw_overlay_plot, normalised_total_background_plot
 from plotting.fit_shapes import fit_signal_mass_shape
-from plotting.signal_reweighter import compare_signal_eft_points, heatmap_signal_eft_efficiency, heatmap_signal_eft_efficiency_LR, heatmap_signal_eft_mean,  heatmap_signal_pairing_mean, heatmap_signal_eft_mean_with_slices, heatmap_signal_eft_efficiency_presel, heatmap_signal_eft_xsm_after_selection
+from plotting.signal_reweighter import compare_signal_reweight_points, heatmap_signal_reweight_efficiency, heatmap_signal_reweight_efficiency_LR, heatmap_signal_reweight_mean,  heatmap_signal_pairing_mean, heatmap_signal_reweight_mean_with_slices, heatmap_signal_reweight_efficiency_presel, heatmap_signal_reweight_xsm_after_selection
 from fitting.fit import scan_k3k4_limits, plot_k3k4_limit_contours, plot_signal_yield_morphing_grid, plot_k3k4_limit_contours_comparison
 
 def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Path, vars_to_stack: list[str], channel: str, shape_var: str | None = None, shape_outdir: Path | None = None, shape_normalize: bool = True):
@@ -23,12 +23,12 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
         
         mask = build_mask_from_selection(tree, SELECTION[channel])
 
-        #plot_1d_histograms(proc, tree, mask, outdir, comment, channel)
+        plot_1d_histograms(proc, tree, mask, outdir, comment, channel)
 
         if overlay_histogram:
             overlay_histogram(tree, mask, proc, outdir, comment, channel)
-        #if plot_heatmaps:
-        #    plot_heatmaps(tree, mask, proc, outdir, comment, channel)
+        if plot_heatmaps:
+            plot_heatmaps(tree, mask, proc, outdir, comment, channel)
 
         plot_hist2d_heatmaps(
             tree=tree,
@@ -41,14 +41,15 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
             weight_field="weight_xsec",
             lumi_scale=LUMINOSITY_PB,
             bins=50,
-            cmap="Blues",
-            color_by="density",        # or "weight"
+            cmap="RdBu_r",
+            color_by="weight",        # or "weight"
             norm="lin"                 # or "linear"
         )
 
         
         shape_dir = (shape_outdir or outdir / "shape_cutflow") / channel
         print("Shape variable used: ", shape_var)
+        
         plot_shape_cutflow(
             root_path=path,
             var=shape_var,
@@ -76,14 +77,12 @@ def cli():
     ap.add_argument("--root-dir", default="/data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted")
     ap.add_argument("--outdir", default="84TeV/test_run")
     ap.add_argument("--comment", default="")
-    ap.add_argument("--channel", default="HadHad", choices=["LepHad", "HadHad", "Combined"])
+    ap.add_argument("--channel", default="HadHad", choices=["LepHad", "HadHad"])
     ap.add_argument("--test", action='store_true')
     ap.add_argument("--signal", default="mgp8_pp_hhh_84TeV")
     ap.add_argument("--compare_dir", default="")
     ap.add_argument("--shape-cutflow", action="store_true")
     ap.add_argument("--shape-var", default="m_hhh_vis")
-    ap.add_argument("--shape-outdir", default="")
-    ap.add_argument("--shape-no-normalize", action="store_true")
     ap.add_argument("--n-slices", type=int, default=4, help="Number of quantile slices for normalised slice plots.")
     args = ap.parse_args()
 
@@ -101,18 +100,11 @@ def cli():
     
     print(f"Running channel: {args.channel}")
     
-    #channels = ["LepHad_resolved", "LepHad_1BB", "LepHad_2BB"]
-    channels = ["TruthRecoall", "TruthRecoTau", "TruthRecob"]
-    channels = ["HH4bMatch"]
-    channels = ["Combined", "HadHad_2BB", "HadHad", "HadHad_boosted", "HadHad_old", "HadHad_resolved", "HadHad_1BB", "LepHad", "LepHad_resolved", "LepHad_1BB", "LepHad_2BB"]
-    channels= ["HadHad_old", "HadHad_old_dRCuts", "HadHad_old_squareCuts"]
-    channels= ["HadHad_resolved", "HadHad_resolved_dRCuts", "HadHad_resolved_squareCuts"]
-    channels = ["HadHad", "LepHad"]
+    channels = ["HadHad"]
     signal = args.signal
     if isTest:
         files = {"mgp8_pp_hhh_84TeV": "/data/atlas/users/dingleyt/FCChh/FCCAnalyses/output.root"}
         signal = list(files.keys())[0]
-        #SIGNAL = list(files.keys())[0]
     else:
         files = {p: root / f"{p}.root" for p in processes if (root / f"{p}.root").is_file()}
         print(files)
@@ -123,6 +115,8 @@ def cli():
     with uproot.open(files[signal]) as f_sig:
         leaves = [k for k in f_sig["events"].keys() if k not in SKIP_VARS]
     vars_to_stack = [v for v in leaves if v in LABEL_MAP]
+    
+    # also make some slice plots, so var_1 in n_slices of var_2
     vars_to_slice = [
         ("m_h1", "pT_h1"),
         ("weighted_MMC_para_perp_vispTcal", "pT_tau1_tlv_LH"),
@@ -166,7 +160,7 @@ def cli():
         doWeight = True
         if chan != "Total":
 
-            # write weighted cutflow
+            # write weighted cutflow for process
             csv_path, tex_path, pdf_path = write_cutflow_weighted_summary(
                 files,
                 outdir=out_base / chan,
@@ -184,13 +178,14 @@ def cli():
         if doPlots:
             
             selection = SELECTION[chan]
-           
+            #write_cutflow_weighted_summary(files, out_base, chan)
                 
             k3_points = np.linspace(-2.5, 6, 100)
             k4_points = np.linspace(-15, 30, 100)
             xsm_maps = True
             if xsm_maps:
-                heatmap_signal_eft_xsm_after_selection(
+                # make a contour map across the k3k4 space
+                heatmap_signal_reweight_xsm_after_selection(
                     files=files,
                     outdir=out_base,
                     k3_grid=k3_points,
@@ -203,7 +198,7 @@ def cli():
                 )
             maps = False
             if maps:
-                heatmap_signal_eft_efficiency_presel(
+                heatmap_signal_reweight_efficiency_presel(
                     files=files,
                     outdir=out_base,
                     k3_grid=k3_points,
@@ -239,7 +234,7 @@ def cli():
                             type="squaremass"
                 )
                 
-                heatmap_signal_eft_mean(
+                heatmap_signal_reweight_mean(
                     var="Higgs_HT_truth",
                     files = files,
                     outdir = out_base,
@@ -249,7 +244,7 @@ def cli():
                     channel=chan
                 )
                 
-                heatmap_signal_eft_mean_with_slices(
+                heatmap_signal_reweight_mean_with_slices(
                     var="Higgs_HT_truth",
                     files = files,
                     outdir = out_base,
@@ -259,7 +254,7 @@ def cli():
                     channel=chan
                 )
                 
-                heatmap_signal_eft_efficiency(
+                heatmap_signal_reweight_efficiency(
                     files=files,
                     outdir=out_base,
                     k3_grid=k3_points,
@@ -268,7 +263,7 @@ def cli():
                     channel=chan
                 )
 
-                heatmap_signal_eft_efficiency_LR(
+                heatmap_signal_reweight_efficiency_LR(
                             files=files,
                             outdir=out_base,
                             k3_grid=k3_points,
@@ -325,7 +320,7 @@ def cli():
                         masks=selection_masks,
                     )
                     if doWeight:
-                        compare_signal_eft_points(
+                        compare_signal_reweight_points(
                             var=var,
                             files=files,
                             outdir=out_base,
@@ -335,6 +330,8 @@ def cli():
                         )
                     
         fit_vars = ["m_tautau_vis_OS","weighted_MMC_para_perp_vispTcal", "metRatio_mode_vispTcal"]
+        
+        # do asimov limits for a given variable
         #scan_k3k4_limits("m_hhh_vis_LR", files, out_base, k3_range=(-7.5, 10), k4_range=(-75, 75), nsteps=10, channel=chan)
         #plot_k3k4_limit_contours(out_base / f"fit/{chan}_significance_scan_m_hhh_viss.npz", out_base, chan)
         #scan_k3k4_limits("mlp_score", files, out_base, k3_range=(-5, 5), k4_range=(-20, 40), nsteps=40, channel=chan)

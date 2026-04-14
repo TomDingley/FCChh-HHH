@@ -17,7 +17,7 @@ The code reads per-process ROOT files, applies channel selections defined in `co
 - `main.py`: top-level driver, almost everything can be enabled / disabled from here
 - `config.py`: process lists, signal/background split, selections, luminosity, and plotting ranges
 - `cutflow.py`: weighted cutflow and region-yield table builders
-- `tools2.py`: selection parsing and EFT morphing helpers
+- `tools.py`: selection parsing and moment morphing helpers
 - `plotting/`: histogram, stack, heatmap, shape-cutflow, and signal-reweighting utilities
 - `fitting/`: likelihood scans, MLP-cut optimization, and `k3`/`k4` contour tools
 - `aesthetics.py`: labels, colors, and plotting text

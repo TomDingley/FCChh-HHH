@@ -5,7 +5,9 @@ All paths provided are absolute, so if you're wanting to run the entire chain lo
 
 ## Environment
 The code requirements are given in `requirements.txt`, and a virtual environment can be made:
-`source setup_env.sh`.
+```bash
+source setup_env.sh
+```
 
 ## Preprocessing
 Prior to training, Tight Preselection cuts are applied to ntuples from `FCCAnalyses`:
@@ -30,11 +32,15 @@ To run the pre-processing, please run:
 
 $\tau_{\text{had}}\tau_{\text{had}}$-channel:
 
-`python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted --config config.json --channels hadhad_MMC`
+```bash
+python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted --config config.json --channels hadhad_MMC
+```
+
 
 $\tau_{\text{lep}}\tau_{\text{had}}$-channel:
-
-`python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat_fakes/merged/weighted --config config.json --channels lephad_MMC`
+```bash
+python preprocessing.py --indir /data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat_fakes/merged/weighted --config config.json --channels lephad_MMC
+```
 
 
 `config.json` contains all training features plus required weights / fitting variables.
@@ -42,9 +48,6 @@ $\tau_{\text{lep}}\tau_{\text{had}}$-channel:
 ### Absolute paths to thesis-inputs
 If you're looking to quickly re-run trainings and check diagnostics, use the absolute paths to inputs used for the latest thesis ML section:
 HHH: `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/Thesis_ntuples`
-
-The condor scripts in the following section are configured by default with these absolute paths so ***should*** run.
-
 
 
 ## Training
@@ -57,7 +60,10 @@ A number of validation plots can be made via the `validate_mlp_torch.py` script.
 
 With absolute-paths for the trained models used in the thesis, run:
 
-`python validate_mlp_torch.py --indir /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/ntuples/Thesis_ntuples/ --model-dir trained_models/Thesis_models/ --outdir validation/Thesis_models/ --channels hadhad_MMC lephad_MMC`
+```bash
+python validate_mlp_torch.py --indir /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/ntuples/Thesis_ntuples/ --model-dir trained_models/Thesis_models/ --outdir validation/Thesis_models/ --channels hadhad_MMC lephad_MMC
+```
+
 
 This may take a while, so perhaps running one at a time would be advisable.
 You should see training plots, final score plot , SHAP beeswarm summaries, correlation plots for signal, background and signal - background, SHAP waterfalls and 2D SHAP score plots for MMC distributions plus a few more.
@@ -65,4 +71,8 @@ You should see training plots, final score plot , SHAP beeswarm summaries, corre
 ## Application
 Now we apply the models to the existing ntuples:
 
-`python apply_mlp_torch.py --indir /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/ntuples/Thesis_ntuples --model-dir trained_models/Thesis_models/ --outdir scored_ntuples/Thesis_scored --channels lephad_MMC hadhad_MMC`
+```bash
+python apply_mlp_torch.py --indir /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/ntuples/Thesis_ntuples --model-dir trained_models/Thesis_models/ --outdir scored_ntuples/Thesis_scored --channels lephad_MMC hadhad_MMC`
+```
+
+Now, these files are ready to be used by fit input preparation scipts in the `TRexFitter` directory.
