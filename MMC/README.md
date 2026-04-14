@@ -33,7 +33,7 @@ Often, the two $\tau$'s are back-to-back in the transverse plane and $p_{\text{T
 Thus, an additional scan over x and y components of the $p_{\text{T}}^{\text{miss}}$ is performed according to the per-event $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$. 
 For each point in parameter space, the measured missing transverse momentum in the $x-y$ plane can be related to the two missing momentum components through
 
-$$
+```math
 \begin{pmatrix}
 p_x^{\text{miss}} \\
 p_y^{\text{miss}}
@@ -47,11 +47,11 @@ p_y^{\text{miss}}
 p_{\mathrm{T}}(\tau_1^{\text{miss}}) \\
 p_{\mathrm{T}}(\tau_2^{\text{miss}})
 \end{pmatrix}.
-$$
+```
 
 Inverting this system gives the missing transverse momentum associated with each $\tau$ decay:
 
-$$
+```math
 \begin{pmatrix}
 p_{\mathrm{T}}(\tau_1^{\text{miss}}) \\
 p_{\mathrm{T}}(\tau_2^{\text{miss}})
@@ -66,42 +66,40 @@ p_{\mathrm{T}}(\tau_2^{\text{miss}})
 p_x^{\text{miss}} \\
 p_y^{\text{miss}}
 \end{pmatrix}.
-$$
+```
 
-Assuming on-shell $\tau$ leptons, and writing the $\tau$ four-momentum as the sum of visible and missing components,$
-p_\tau^\mu = p_{\text{vis}}^\mu + p_{\text{miss}}^\mu,
-$ one obtains after squaring,
+Assuming on-shell $\tau$ leptons, and writing the $\tau$ four-momentum as the sum of visible and missing components, $p_\tau^\mu = p_{\text{vis}}^\mu + p_{\text{miss}}^\mu$, one obtains after squaring,
 
-$$
- m_{\tau}^2=
+```math
+m_{\tau}^2=
 m_{\text{vis}}^2 + m_{\text{miss}}^2
 + 2E_{\text{vis}}E_{\text{miss}}
 - 2\vec{p}_{\text{vis}} \cdot \vec{p}_{\text{miss}}.
-$$
+```
 
 Expanding $\vec{p}_{\text{vis}}$ and $\vec{p}_{\text{miss}}$ in terms of their $x$, $y$, and $z$ components then leads to a quadratic equation in $p_z^{\text{miss}}$:
 
-$$
+```math
 (p_z^{\text{miss}})^2 \left[(p_z^{\text{vis}})^2 - E_{\text{vis}}^2\right]
 + p_z^{\text{miss}} \left[2A\,p_z^{\text{vis}}\right]
 + \left[A^2 - (E_{\text{vis}}p_{\mathrm{T}}^{\text{miss}})^2 - (E_{\text{vis}}m_{\text{miss}})^2\right]
 = 0,
-$$
+```
 
 where
 
-$$
+```math
 A = \frac{1}{2}\left(m_\tau^2 - m_{\text{vis}}^2 - m_{\text{miss}}^2\right)
 + \vec{p}_{\mathrm{T}}^{\text{miss}} \cdot \vec{p}_{\mathrm{T}}^{\text{vis}}.
-$$
+```
 
 Not all real solutions of the $p_z$ quadratic are equally likely, and knowledge of the expected $\tau$-decay kinematics can be used to guide the algorithm towards the most probable visible and missing momentum configuration. The weighting of solutions and extraction of $m_{\tau\tau}$ is known as the Missing Mass Calculator algorithm and is used across the ATLAS and CDF collaborations.
 The weighting function takes the form:
-$$
-\begin{equation*}
-    -\log L = -\log \left[ \mathcal{P}\left( \theta_{3D}^{1}(p^1_{\tau}) \right) \mathcal{P}\left( \theta_{3D}^{2}(p^2_{\tau}) \right) \mathcal{P}\left( \Delta p_x^{\text{miss}} \right) \mathcal{P}\left( \Delta p_y^{\text{miss}} \right) \mathcal{P}\left( x_{\text{miss}}^1 \right)\mathcal{P}\left( x_{\text{miss}}^2 \right) \right]
-\end{equation*}
-$$
+
+```math
+-\log L = -\log \left[ \mathcal{P}\left( \theta_{3D}^{1}(p^1_{\tau}) \right) \mathcal{P}\left( \theta_{3D}^{2}(p^2_{\tau}) \right) \mathcal{P}\left( \Delta p_x^{\text{miss}} \right) \mathcal{P}\left( \Delta p_y^{\text{miss}} \right) \mathcal{P}\left( x_{\text{miss}}^1 \right)\mathcal{P}\left( x_{\text{miss}}^2 \right) \right]
+```
+
 where $\mathcal{P}\left( \theta_{3D}^{1(2)}(p^{1(2)}_{\tau})\right)$ are the probability density functions for the angle between visible and missing components, $\mathcal{P}\left( \Delta p_{x,y}^{\text{miss}} \right)$ is a Gaussian centred around the measured $p_{\text{x,y}}^{\text{miss}}$ with width $\sigma\left(p_{\text{T}}^{\text{miss}}\right)$ and $\mathcal{P}\left( x_{\text{miss}}^1 \right)$ is a beta-function fitted to the expected missing momentum carried away per-$\tau$ decay.
 
 
@@ -116,4 +114,3 @@ An example fit is shown below.
 ## Missing momentum fraction
 
 ## Mass prior
-
