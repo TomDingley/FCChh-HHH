@@ -44,7 +44,7 @@ For the triple Higgs analysis:
 For the di-Higgs analysis:
 `source prep_inputs_HH.sh`
 
-# The absolute path for the inputs used for thesis results:
+### The absolute path for the inputs used for thesis results:
 If you're looking to quickly run fits and check diagnostics, use the absolute paths to inputs used for the latest thesis results section. 
 
 HHH: `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis`
@@ -55,6 +55,6 @@ HH: `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis_bbaa`
 ## Running fits
 All fits can be run from the `run` directory, the bash scripts run the entire fit workflow and stores logs / errors in the `logs` directory according to the type of fit performed.
 
-Diagnostic plots are found in the fit directory, taking `configs/HHH/hhh_k4Fit_hist_scenI.config` as an example, the outptus will be stored in `run/Thesis_k4Fit_scenI`. 
+Diagnostic plots are found in the fit directory, taking `configs/HHH/hhh_k4Fit_hist_scenI.config` as an example, the outputs will be stored in `run/Thesis_k4Fit_scenI`. 
 
 Most of these scripts also run the plotting scripts used for the final results figures and are stored in the `plots` directory.

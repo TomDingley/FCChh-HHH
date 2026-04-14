@@ -1,0 +1,26 @@
+universe = vanilla
+executable = condor_train.sh
+
+when_to_transfer_output = ON_EXIT
+
+request_cpus = 4
+request_memory = 8 GB
+request_disk = 4 GB
+
+output = condor_logs/$(ClusterId).$(ProcId).out
+error  = condor_logs/$(ClusterId).$(ProcId).err
+log    = condor_logs/$(ClusterId).log
+
+INDIR = /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/Thesis_ntuples
+OUTDIR = trained_models/Thesis_models
+FEATURES = train_features.json
+SIGNAL = mgp8_pp_hhh_84TeV
+TAG = mlp_torch
+SPLITS = 2
+SEED = 42
+NTRIALS = 50
+CHANNELS = hadhad_MMC lephad_MMC
+
+arguments = --indir $(INDIR) --features-config $(FEATURES) --outdir $(OUTDIR) --signal $(SIGNAL) --tag $(TAG) --splits $(SPLITS) --seed $(SEED) --n-trials $(NTRIALS) --channels $(CHANNELS) 
+
+queue 1
