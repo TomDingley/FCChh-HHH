@@ -1,5 +1,5 @@
 # FCC Triple Higgs 
-
+<p><strong>Timer:</strong> 10:00</p>
 End-to-end analysis repository for the FCC-hh triple-Higgs study: event generation -> Delphes -> Pythia8 -> post-processing / plotting -> ML -> statistical interpretation.
 
 ---
