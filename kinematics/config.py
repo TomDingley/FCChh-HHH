@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple
 
 MMC = True # Tight Preselection
 bbaa = False # bbaa selections
-
+doSignal = True
 from collections import OrderedDict
 
 # ---------- tiny helpers to keep strings tidy ----------
@@ -71,51 +71,30 @@ SKIP_VARS = {"weight", "reweight", "eventNumber"}
 
 if doSignal:
     processes: List[str] = ["mg_pp_hhh_4b2tau"]
-elif doHiggs:
-    processes: List[str] = ["mgp8_pp_hhh_84TeV"]
-elif newprod:
-    if doTtbb:
-        processes: List[str] = [
-        "mgp8_pp_hhh_84TeV", "mgp8_pp_ttbb_4f_84TeV"
-    ]
-    else:
-        processes: List[str] = [
-            "mgp8_pp_hhh_84TeV",
-            "mgp8_pp_ttbb_4f_84TeV",
-            "pwp8_pp_hh_k3_1_k4_1_84TeV",
-            "mgp8_pp_tth_5f_84TeV",
-            "mgp8_pp_tttt_5f_84TeV",
-            "mgp8_pp_ttz_5f_84TeV",
-            "mgp8_pp_zzz_5f_84TeV",
-            "mgp8_pp_hh01j_5f_84TeV",
-            "mgp8_pp_zz012j_4f_84TeV",
-            "mgp8_pp_z_4f_84TeV",
-            "mgp8_pp_h_5f_84TeV",
-            "mgp8_pp_hhjj_5f_84TeV",
-            "mgp8_pp_jjaa_5f_84TeV",
-            "mgp8_pp_h012j_5f_84TeV",
-            "mgp8_pp_tth01j_5f_84TeV",
-            "mgp8_pp_vbf_h01j_5f_84TeV"
-        ]
 else:
     processes: List[str] = [
-        "mg_pp_hhh_4b2tau",
-        "mg_pp_zzz_5f",
-        #"mg_pp_hh01j_5f",
-        "mg_pp_tttt_5f",
-        "mg_pp_tth01j_5f",
-        "mg_pp_ttz_5f",
-        "mg_pp_ttbb_4f"
+        "mgp8_pp_hhh_84TeV",
+        "mgp8_pp_ttbb_4f_84TeV",
+        "pwp8_pp_hh_k3_1_k4_1_84TeV",
+        "mgp8_pp_tth_5f_84TeV",
+        "mgp8_pp_tttt_5f_84TeV",
+        "mgp8_pp_ttz_5f_84TeV",
+        "mgp8_pp_zzz_5f_84TeV",
+        "mgp8_pp_hh01j_5f_84TeV",
+        "mgp8_pp_zz012j_4f_84TeV",
+        "mgp8_pp_z_4f_84TeV",
+        "mgp8_pp_h_5f_84TeV",
+        "mgp8_pp_hhjj_5f_84TeV",
+        "mgp8_pp_jjaa_5f_84TeV",
+        "mgp8_pp_h012j_5f_84TeV",
+        "mgp8_pp_tth01j_5f_84TeV",
+        "mgp8_pp_vbf_h01j_5f_84TeV"
     ]
-if newcard:
-    processes = ["mgp8_pp_hhh_84TeV","mgp8_pp_hhh_84TeV_fixcard"]
+
 
 testingfakes = False
 if testingfakes:
     processes = ["mgp8_pp_ttbb_4f_84TeV"]
-
-if newsamples:
-    processes = ["mgp8_pp_zz012j_4f_84TeV", "mgp8_pp_hhjj_5f_84TeV"]
 
 compare_energies = False
 
