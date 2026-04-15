@@ -55,6 +55,7 @@ There are inputs available at each stage, so the code can be tested independentl
 | Pythia8 + Delphes | All samples, including `ttbar -> bbWW` with `W -> tau` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/FullStatistics_tautau/fcc_v07/II` |
 | Pythia8 + Delphes | `ttbb` samples with inclusive `W` decays | `/data/atlas/users/dingleyt/FCChh/eventProd/EventProducer/ttbb_emutau_new/fcc_v07/II` |
 | Processed ntuples | FCCAnalyses output ntuples | `/data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples` |
+| ML Models | Lephad / Hadhad channels | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/trained_models/Thesis_models` |
 | Scored ntuples | Scored $\tau_{\text{lep}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_lephad` |
 | Scored ntuples | Scored $\tau_{\text{had}}\tau_{\text{had}}$ ntuples | `/data/atlas/users/dingleyt/FCChh/hhh/ML/pytorch/scored_ntuples/Thesis_hadhad` |
 | Fit-ready inputs | TRExFitter inputs | `/data/atlas/users/dingleyt/FCChh/trex/TRExFitter/inputs_thesis` |

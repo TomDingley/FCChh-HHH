@@ -208,12 +208,12 @@ def cli():
                 )
                 heatmap_signal_pairing_mean(
                         files=files,
-                            outdir=out_base,
-                            k3_grid=k3_points,
-                            k4_grid=k4_points,
-                            comment=comment,
-                            channel=chan,
-                            type="dRminmax"
+                        outdir=out_base,
+                        k3_grid=k3_points,
+                        k4_grid=k4_points,
+                        comment=comment,
+                        channel=chan,
+                        type="dRminmax"
                 )
                 heatmap_signal_pairing_mean(
                         files=files,
@@ -332,8 +332,8 @@ def cli():
         fit_vars = ["m_tautau_vis_OS","weighted_MMC_para_perp_vispTcal", "metRatio_mode_vispTcal"]
         
         # do asimov limits for a given variable
-        #scan_k3k4_limits("m_hhh_vis_LR", files, out_base, k3_range=(-7.5, 10), k4_range=(-75, 75), nsteps=10, channel=chan)
-        #plot_k3k4_limit_contours(out_base / f"fit/{chan}_significance_scan_m_hhh_viss.npz", out_base, chan)
+        scan_k3k4_limits("m_hhh_vis", files, out_base, k3_range=(-7.5, 10), k4_range=(-75, 75), nsteps=10, channel=chan)
+        plot_k3k4_limit_contours(out_base / f"fit/{chan}_significance_scan_m_hhh_viss.npz", out_base, chan)
         #scan_k3k4_limits("mlp_score", files, out_base, k3_range=(-5, 5), k4_range=(-20, 40), nsteps=40, channel=chan)
         #plot_k3k4_limit_contours(out_base / "fit/limit_scan_NNScore_OOF.npz", out_base, chan)
         
