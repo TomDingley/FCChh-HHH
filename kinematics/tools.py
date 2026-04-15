@@ -17,33 +17,13 @@ import math
 
 
 
-from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS, LUMINOSITY_PB, HADHAD, LEPHAD_TAU, LEPHAD_ETAU, LEPHAD_MUTAU, LEPHAD_ANY, BJET_PRESEL, HADHAD_JET, HADHAD_OS, HADHAD_NOLEP, LEPHAD_BJETS
+from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS, LUMINOSITY_PB
 from aesthetics import process_labels, LABEL_MAP
 
 
 import re
 from typing import Dict, Iterable, Set
 
-# cutflow:
-CUTFLOW = {
-    "LepHad": [
-        {"label": "Total",      "expr": "True"},
-        {"label": "Lep-Had",    "expr": "LEPHAD"},  # replace with your selection
-        # Examples (uncomment/adapt):
-        # {"label": "Njet ≥ 5",   "expr": "jets_n >= 5"},
-        # {"label": "≥2 b-jets",  "expr": "bjets_n >= 2"},
-        # {"label": "pT_b1 > 40", "expr": "pt_bjet_1 > 40"},
-        # {"label": "Standalone @Lep–Had: NNScore>0.98", "expr": "NNScore_OOF > 0.98", "base": "Lep–Had"},
-    ],
-    "HadHad": [
-        {"label": "Total",     "expr": "True"},
-        {"label": "Had-Had",   "expr": "HADHAD"},    # replace with your selection
-    ],
-    "Combined": [
-        {"label": "Total",                "expr": "True"},
-        {"label": "LepHad ∪ HadHad",      "expr": "NNScore_OOF > 0.985"},
-    ],
-}
 
 
 # Whitelisted helper functions usable in selection strings
