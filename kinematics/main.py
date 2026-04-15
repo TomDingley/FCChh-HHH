@@ -72,7 +72,7 @@ def process_file(proc: str, path: Path, outdir: Path, comment: str, compDir: Pat
 
 def cli():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root-dir", default="/data/atlas/users/dingleyt/FCChh/FCCAnalyses/ATLASUK_MMC_ttbb_fullstat/merged/weighted")
+    ap.add_argument("--root-dir", default="/data/atlas/users/dingleyt/FCChh/FCCAnalyses/thesis_ntuples/hadhad/weighted")
     ap.add_argument("--outdir", default="84TeV/test_run")
     ap.add_argument("--comment", default="")
     ap.add_argument("--channel", default="HadHad", choices=["LepHad", "HadHad"])

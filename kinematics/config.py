@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple
 
 MMC = True # Tight Preselection
 bbaa = False # bbaa selections
-doSignal = True
+doSignal = False
 from collections import OrderedDict
 
 # ---------- tiny helpers to keep strings tidy ----------
