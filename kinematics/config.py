@@ -69,6 +69,7 @@ N_BINS_2D = 50
 SKIP_VARS = {"weight", "reweight", "eventNumber"}
 
 
+# expected ntuples filenames = process.root
 if doSignal:
     processes: List[str] = ["mg_pp_hhh_4b2tau"]
 else:
