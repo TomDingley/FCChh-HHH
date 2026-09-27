@@ -103,11 +103,13 @@ def main():
     if args.extra_weight:
         print(f"Extra wgt : {args.extra_weight}")
 
+    missing = [os.path.join(args.in_dir, fname) for fname in BKG_SAMPLES.values()
+               if not os.path.isfile(os.path.join(args.in_dir, fname))]
+    if missing:
+        raise FileNotFoundError("Missing required input samples: " + ", ".join(missing))
+
     for skey, fname in BKG_SAMPLES.items():
         inpath = os.path.join(args.in_dir, fname)
-        if not os.path.isfile(inpath):
-            print(f"[WARN] Missing input: {inpath}")
-            continue
         make_hist_for_sample(
             sample_key=skey,
             infile=inpath,
