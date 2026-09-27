@@ -76,3 +76,7 @@ python apply_mlp_torch.py --indir /data/atlas/users/dingleyt/FCChh/hhh/ML/pytorc
 ```
 
 Now, these files are ready to be used by fit input preparation scipts in the `TRexFitter` directory.
+
+
+Negative physics weights are retained in both channels - required for NLO HH events.
+

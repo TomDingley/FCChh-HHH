@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 import uproot
+from root_io import open_root
 import awkward as ak
 import numpy as np
 import json
 from pathlib import Path
 import argparse
+from root_io import write_events
 
 
 # ----------------------------
 # Selection functions
 # ----------------------------
 def apply_selection_lephadMMC(events):
-    mu_cond = (events["n_sel_mu"] == 1) & (events["OS_taumu"] == 1 & (events["n_sel_el_0p2"] == 0))
+    mu_cond = (events["n_sel_mu"] == 1) & (events["OS_taumu"] == 1) & (events["n_sel_el_0p2"] == 0)
     el_cond = (events["n_sel_el_0p2"] == 1) & (events["OS_taue"] == 1) & (events["n_sel_mu"] == 0)
 
     return (
@@ -49,7 +51,6 @@ def apply_selection_hadhadMMC(events):
         & (events["pT_b4"] > 25)
         & (events["weighted_MMC_para_perp_vispTcal"] > 50)
         & (events["weighted_MMC_para_perp_vispTcal"] < 300)
-        & (events["weight"] > 0)
         & (events["m_h1"] > 40)
         & (events["m_h2"] > 20) 
         & (events["m_h1"] < 175)
@@ -73,7 +74,7 @@ def selection_for_channel(channel: str):
 def process_file(fpath: Path, outdir: Path, config: dict, channel: str):
     print(f"[*] Processing {fpath.name} for channel {channel}...")
 
-    with uproot.open(fpath) as f:
+    with open_root(fpath) as f:
         tree = f["events"]
         events = tree.arrays(library="ak")
 
@@ -88,8 +89,7 @@ def process_file(fpath: Path, outdir: Path, config: dict, channel: str):
     # write new ROOT file
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / f"{fpath.stem}_{channel}.root"
-    with uproot.recreate(outpath) as fout:
-        fout["events"] = out_arrays
+    write_events(outpath, out_arrays)
 
     print(f"[✓] Saved {outpath}")
 
@@ -125,11 +125,13 @@ def main():
     
     channels = args.channels
 
+    missing = [str(indir / f"{proc}.root") for proc in processes
+               if not (indir / f"{proc}.root").is_file()]
+    if missing:
+        raise FileNotFoundError("Missing required input samples: " + ", ".join(missing))
+
     for proc in processes:
         fpath = indir / f"{proc}.root"
-        if not fpath.is_file():
-            print(f"[!] Skipping {proc}, file not found")
-            continue
         for channel in channels:
             process_file(fpath, outdir, config, channel)
 

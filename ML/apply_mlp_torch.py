@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from root_io import write_events
+from oof import load_run, verified_splits
 import json
 import re
 from pathlib import Path
@@ -10,6 +12,7 @@ from collections import defaultdict
 import numpy as np
 import awkward as ak
 import uproot
+from root_io import open_root
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -102,12 +105,6 @@ def predict_proba(model: nn.Module, X: np.ndarray, device: torch.device, batch_s
 
 
 def load_models(channel_dir: Path, tag: str, n_features: int, device: torch.device):
-    best_params_path = channel_dir / f"{tag}_best_params.json"
-    if not best_params_path.is_file():
-        raise FileNotFoundError(f"Missing best params: {best_params_path}")
-    with open(best_params_path) as jf:
-        best_params = json.load(jf)
-
     model_paths = sorted(
         p for p in channel_dir.glob(f"{tag}_fold*.pt")
         if not p.stem.endswith("_scaler")
@@ -128,6 +125,8 @@ def load_models(channel_dir: Path, tag: str, n_features: int, device: torch.devi
                 )
             raise FileNotFoundError(f"Missing scaler file: {scaler_path}")
 
+        meta = json.loads((channel_dir / f"{fold_name}.json").read_text())
+        best_params = meta["best_params"]
         model = MLP(
             n_in=n_features,
             hidden=tuple(best_params["hidden"]),
@@ -215,7 +214,7 @@ def load_channel_arrays(indir: Path, channel: str, features, signal_key: str):
 
     for i, fpath in enumerate(files):
         proc = fpath.stem.replace(f"_{channel}", "")
-        with uproot.open(fpath) as f:
+        with open_root(fpath) as f:
             tree = f["events"]
             cols = [ak.to_numpy(tree[v].array(library="ak")) for v in features]
             X_list.append(np.column_stack(cols))
@@ -244,7 +243,7 @@ def apply_to_file(fpath: Path,
                   scores: np.ndarray,
                   fold_ids: np.ndarray,
                   mask: np.ndarray):
-    with uproot.open(fpath) as f:
+    with open_root(fpath) as f:
         tree = f["events"]
         events = tree.arrays(library="ak")
 
@@ -258,8 +257,7 @@ def apply_to_file(fpath: Path,
     out_arrays["mlp_oof_fold"] = fold_ids[mask].astype(np.int32)
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    with uproot.recreate(outpath) as fout:
-        fout["events"] = out_arrays
+    write_events(outpath, out_arrays)
 
 
 def main():
@@ -273,7 +271,7 @@ def main():
     ap.add_argument("--channels", nargs="+", default=["hadhad", "lephad"])
     ap.add_argument("--suffix", default="", help="Suffix for output ROOT filenames")
     ap.add_argument("--signal", default="mgp8_pp_hhh_84TeV", help="Substring to identify signal process")
-    ap.add_argument("--seed", type=int, default=42, help="Random state")
+    ap.add_argument("--seed", type=int, default=None, help="Optional check against the saved training seed")
     args = ap.parse_args()
 
     device =  torch.device("cpu")
@@ -289,18 +287,8 @@ def main():
 
     for channel in args.channels:
         channel_dir = model_dir / channel
-        meta_files = sorted(channel_dir.glob(f"{args.tag}_fold*.json"))
-        if meta_files:
-            with open(meta_files[0]) as jf:
-                meta = json.load(jf)
-            features = list(meta["features"])
-        else:
-            if feat_cfg is None:
-                raise FileNotFoundError(f"No model metadata found in {channel_dir} and no features config provided.")
-            if "channels" not in feat_cfg or channel not in feat_cfg["channels"]:
-                raise KeyError(f"Channel '{channel}' not found in {args.features_config}")
-            features = list(feat_cfg["channels"][channel]["features"])
-
+        run = load_run(channel_dir, args.tag)
+        features = list(run["features"])
         models = load_models(channel_dir, args.tag, len(features), device)
         models_sorted = sorted(models, key=lambda x: (x[0] is None, x[0]))
 
@@ -308,17 +296,9 @@ def main():
         X, y, proc_names, w_xsec, file_ids, files = load_channel_arrays(
             indir, channel, features, args.signal
         )
-        w_norm = normalise_per_process_weights(proc_names, w_xsec)
-
-        n_splits = len(models_sorted)
-        if n_splits != len(models_sorted):
-            raise ValueError(
-                f"--splits={n_splits} but found {len(models_sorted)} models in {channel_dir}."
-            )
-        # create exactly the same splits as used in trianing
-        splits = weighted_stratified_kfold_indices(
-            y=y, proc=proc_names, w=w_norm, n_splits=n_splits, random_state=args.seed
-        )
+        splits, _ = verified_splits(
+            channel_dir, run, files, channel=channel, features=features,
+            signal_key=args.signal, seed=args.seed)
 
         # define scores / folds
         oof_scores = np.full(X.shape[0], np.nan, dtype=np.float32)

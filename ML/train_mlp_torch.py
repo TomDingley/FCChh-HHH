@@ -2,12 +2,18 @@
 
 import json
 import argparse
+import sys
+import os
+import random
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+from oof import input_manifest, save_run
 from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
 import awkward as ak
 import uproot
+from root_io import open_root
 import optuna
 import torch
 import torch.nn as nn
@@ -44,7 +50,7 @@ def load_channel_arrays(indir: Path, channel: str, features, signal_key: str):
     for fpath in files:
         # strip path of the channel name, retain only the process
         proc = fpath.stem.replace(f"_{channel}", "")
-        with uproot.open(fpath) as f:
+        with open_root(fpath) as f:
             tree = f["events"]
             
             # make awkward arrays of all features used for training (as defined in train_features.json)
@@ -94,6 +100,8 @@ def weighted_stratified_kfold_indices(y: np.ndarray,
                                       random_state: int = 42):
     # Build k-fold train/test splits while keeping each fold as representative
     # as possible in terms of class label and process composition
+    if n_splits < 2:
+        raise ValueError("At least two folds are required.")
     rng = np.random.default_rng(random_state)
     
     # Global event index array. The folds below are stored as event indices into
@@ -138,11 +146,13 @@ def weighted_stratified_kfold_indices(y: np.ndarray,
     # downstream by Optuna tuning and final fold training.
     splits = []
     for k in range(n_splits):
-        test_idx = np.array(sorted(folds[k]))
+        test_idx = np.array(sorted(folds[k]), dtype=np.int64)
         mask = np.ones(n, dtype=bool)
         mask[test_idx] = False
         train_idx = idx_all[mask]
         splits.append((train_idx, test_idx))
+    if any(len(np.unique(y[idx])) != 2 for pair in splits for idx in pair):
+        raise ValueError("Each training and test fold must contain both classes; use more events or fewer folds.")
     return splits
 
 
@@ -255,11 +265,13 @@ class MLP(nn.Module):
 
 def set_all_seeds(seed: int):
     # for reproducibility, set seeds accordingly
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True)
 
 
 def weighted_roc_auc(y_true: np.ndarray,
@@ -491,8 +503,7 @@ def split_train_val(tr_sel, ytr, val_frac: float, rng: np.random.Generator):
 # ------------------------------
 def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
                            random_state=42, n_trials=40, use_all_splits=False,
-                           device=None):
-    rng = np.random.default_rng(random_state)
+                           device=None, max_epochs=200):
     device = device or (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
 
     # setup objectives to sample over
@@ -512,14 +523,17 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
             "beta1": trial.suggest_float("beta1", 0.85, 0.95),
             "beta2": trial.suggest_float("beta2", 0.995, 0.9999),
             "eps": 10 ** trial.suggest_float("eps_log10", -9, -7),
-            "max_epochs": 200,
+            "max_epochs": max_epochs,
             "dropout": trial.suggest_float("dropout", 0.0, 0.2),
         }
 
         aucs = []
         inner_splits = splits if use_all_splits else splits[:min(3, len(splits))]
 
-        for (tr_idx, te_idx) in inner_splits:
+        for inner_fold, (tr_idx, te_idx) in enumerate(inner_splits):
+            # The same sample draw and initialisation are used for each trial.
+            fit_seed = random_state + inner_fold
+            rng = np.random.default_rng(fit_seed)
             tr_sel, ytr = make_balanced_train_selection(tr_idx, y, w_norm, rng)
             tr_sel2, ytr2, va_sel, yva = split_train_val(tr_sel, ytr, params["val_frac"], rng)
 
@@ -530,10 +544,10 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
             Xva = scaler.transform(X[va_sel])
             Xte = scaler.transform(X[te_idx])
 
+            set_all_seeds(fit_seed)
             model = MLP(n_in=X.shape[1], hidden=params["hidden"],
                         activation=params["activation"], dropout=params["dropout"])
 
-            set_all_seeds(random_state)
             _ = train_one(
                 model,
                 Xtr, ytr2.astype(np.float32),
@@ -555,7 +569,8 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
 
         return float(np.mean(aucs))
 
-    study = optuna.create_study(direction="maximize")
+    study = optuna.create_study(direction="maximize",
+                                sampler=optuna.samplers.TPESampler(seed=random_state))
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
 
     # get best from the full set of trials:
@@ -572,10 +587,25 @@ def tune_hyperparams_torch(X, y, proc_names, w_norm, splits, *,
         "beta1": bp["beta1"],
         "beta2": bp["beta2"],
         "eps": 10 ** bp["eps_log10"],
-        "max_epochs": 200,
+        "max_epochs": max_epochs,
         "dropout": bp["dropout"],
     }
     return best_params, float(study.best_trial.value)
+
+
+def tune_outer_fold(X, y, proc_names, w_xsec, train_indices, *, inner_splits,
+                    random_state, n_trials, use_all_splits, device, max_epochs):
+    """Keep all hyperparameter selection inside one outer training fold."""
+    X_outer, y_outer = X[train_indices], y[train_indices]
+    proc_outer = proc_names[train_indices]
+    w_outer = normalise_per_process_weights(proc_outer, w_xsec[train_indices])
+    splits = weighted_stratified_kfold_indices(
+        y_outer, proc_outer, w_outer, n_splits=inner_splits,
+        random_state=random_state)
+    return tune_hyperparams_torch(
+        X_outer, y_outer, proc_outer, w_outer, splits,
+        random_state=random_state, n_trials=n_trials, use_all_splits=use_all_splits,
+        device=device, max_epochs=max_epochs)
 
 
 # ------------------------------
@@ -592,10 +622,14 @@ def main():
     ap.add_argument("--splits", type=int, default=2, help="Number of folds")
     ap.add_argument("--seed", type=int, default=42, help="Random state")
     ap.add_argument("--n-trials", type=int, default=10, help="Optuna trials per channel")
-    ap.add_argument("--use-all-splits", action="store_true", help="Use all outer splits inside HPO objective")
+    ap.add_argument("--inner-splits", type=int, default=2, help="Inner folds for tuning each outer model")
+    ap.add_argument("--max-epochs", type=int, default=200, help="Maximum epochs per model")
+    ap.add_argument("--use-all-splits", action="store_true", help="Use all inner splits inside HPO objective")
     ap.add_argument("--channels", nargs="+", default=["hadhad_MMC", "lephad_MMC"])
     ap.add_argument("--device", default=None, help="cuda or cpu (default: auto)")
     args = ap.parse_args()
+    if min(args.splits, args.inner_splits) < 2 or min(args.n_trials, args.max_epochs) < 1:
+        ap.error("Fold counts must be >= 2; trial and epoch counts must be positive.")
 
     device = None
     if args.device is not None:
@@ -622,6 +656,7 @@ def main():
         feats = list(feat_cfg["channels"][channel]["features"])
 
         X, y, proc_names, w_xsec, files = load_channel_arrays(indir, channel, feats, args.signal)
+        manifest = input_manifest(files)
         w_norm = normalise_per_process_weights(proc_names, w_xsec)
         print("  Using per-process normalised |weight_xsec| for training/sampling.")
 
@@ -632,41 +667,34 @@ def main():
         ch_out = outdir / channel
         ch_out.mkdir(parents=True, exist_ok=True)
 
-        print("  Tuning hyperparameters with Optuna")
-        # this is by far the most time consuming step:
-        best_params, best_cv_auc = tune_hyperparams_torch(
-            X, y, proc_names, w_norm, splits,
-            random_state=args.seed, n_trials=args.n_trials,
-            use_all_splits=args.use_all_splits,
-            device=device
-        )
-        print("  Best params:", best_params)
-        print(f"  Best mean CV AUC: {best_cv_auc:.4f}")
-
-        # dump the best model parameters
-        with open(ch_out / f"{args.tag}_best_params.json", "w") as jf:
-            json.dump(best_params, jf, indent=2)
-            
-        # now that we have the best performing set of parameters, we train and save the full model.
-
+        if list(ch_out.glob(f"{args.tag}_*")):
+            raise FileExistsError(f"Training artifacts already exist for {args.tag} in {ch_out}; "
+                                  "use a new tag or output directory to avoid mixing runs.")
         fold_aucs = []
-        rng = np.random.default_rng(args.seed)
-        
+        selections = []
         for fold, (tr_idx, te_idx) in enumerate(splits, start=1):
-            print(f"\n  Fold {fold}/{args.splits}")
-
+            print(f"\n  Outer fold {fold}/{args.splits}: tune only on its training events")
+            fold_seed = args.seed + fold
+            best_params, best_cv_auc = tune_outer_fold(
+                X, y, proc_names, w_xsec, tr_idx, inner_splits=args.inner_splits,
+                random_state=fold_seed, n_trials=args.n_trials,
+                use_all_splits=args.use_all_splits, device=device,
+                max_epochs=args.max_epochs)
+            print(f"  Best inner CV AUC: {best_cv_auc:.4f}; params: {best_params}")
+            rng = np.random.default_rng(fold_seed)
             tr_sel, ytr = make_balanced_train_selection(tr_idx, y, w_norm, rng)
             tr_sel2, ytr2, va_sel, yva = split_train_val(tr_sel, ytr, best_params["val_frac"], rng)
 
+            selections.append((tr_sel2.copy(), va_sel.copy()))
             scaler = StandardScaler(with_mean=True, with_std=True)
             Xtr = scaler.fit_transform(X[tr_sel2])
             Xva = scaler.transform(X[va_sel])
             Xte = scaler.transform(X[te_idx])
 
+            set_all_seeds(fold_seed)
             model = MLP(n_in=X.shape[1], hidden=best_params["hidden"],
                         activation=best_params["activation"], dropout=best_params.get("dropout", 0.0))
 
-            set_all_seeds(args.seed)
             _, loss_hist = train_one(
                 model,
                 Xtr, ytr2.astype(np.float32),
@@ -703,6 +731,8 @@ def main():
                 "n_splits": args.splits,
                 "random_state": args.seed,
                 "best_params": best_params,
+                "fit_seed": fold_seed,
+                "inner_cv_auc": best_cv_auc,
                 "test_auc_weighted": float(auc),
                 "files": [str(p) for p in files],
                 "signal_key": args.signal,
@@ -713,6 +743,14 @@ def main():
             }
             with open(ch_out / f"{model_name}.json", "w") as jf:
                 json.dump(meta, jf, indent=2)
+
+        save_run(
+            ch_out, args.tag, channel=channel, features=feats, signal_key=args.signal,
+            seed=args.seed, files=files, manifest=manifest, splits=splits,
+            selections=selections, arguments=vars(args),
+            versions={"python": sys.version, "numpy": np.__version__,
+                      "torch": str(torch.__version__), "optuna": optuna.__version__,
+                      "uproot": uproot.__version__})
 
         print(f"\n  Mean weighted AUC over {args.splits} folds: "
               f"{np.mean(fold_aucs):.4f} ± {np.std(fold_aucs):.4f}")

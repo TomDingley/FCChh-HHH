@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from oof import load_run, verified_splits
 import csv
 import json
 import re
@@ -12,6 +13,7 @@ from functools import lru_cache
 import numpy as np
 import awkward as ak
 import uproot
+from root_io import open_root
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -35,7 +37,7 @@ def load_channel_dataframe(indir: Path, channel: str, features, signal_key: str)
 
     for fpath in files:
         proc = fpath.stem.replace(f"_{channel}", "")
-        with uproot.open(fpath) as f:
+        with open_root(fpath) as f:
             tree = f["events"]
             cols = [ak.to_numpy(tree[v].array(library="ak")) for v in features]
             X_list.append(np.column_stack(cols))
@@ -1889,7 +1891,9 @@ def aggregate_metrics(metrics_list):
 
 
 def load_fold_model_and_scaler(ch_model_dir: Path, model_name: str,
-                               best_params: dict, n_in: int, device: torch.device):
+                               n_in: int, device: torch.device):
+    meta = json.loads((ch_model_dir / f"{model_name}.json").read_text())
+    best_params = meta["best_params"]
     model = MLP(
         n_in=n_in,
         hidden=tuple(best_params["hidden"]),
@@ -1924,7 +1928,7 @@ def concatenate_score_payload(payload: dict) -> dict:
     return out
 
 
-def collect_fold_shap_diagnostics(ch_model_dir: Path, tag: str, best_params: dict,
+def collect_fold_shap_diagnostics(ch_model_dir: Path, tag: str,
                                   X: np.ndarray, y: np.ndarray, proc_names: np.ndarray,
                                   w_norm: np.ndarray, splits, features, device,
                                   target_feature: str = "weighted_MMC_para_perp_vispTcal"):
@@ -1946,7 +1950,7 @@ def collect_fold_shap_diagnostics(ch_model_dir: Path, tag: str, best_params: dic
     for fold, (_, te_idx) in enumerate(splits, start=1):
         model_name = f"{tag}_fold{fold}"
         model, scaler = load_fold_model_and_scaler(
-            ch_model_dir, model_name, best_params, X.shape[1], device
+            ch_model_dir, model_name, X.shape[1], device
         )
         shap_vals, _, shap_raw, shap_feats, eval_idx, base_values = compute_shap_values(
             model, scaler, X[te_idx], list(features), device,
@@ -2039,8 +2043,8 @@ def main():
     ap.add_argument("--outdir", default="validation_torch", help="Output directory for validation")
     ap.add_argument("--signal", default="mgp8_pp_hhh_84TeV", help="Substring to identify signal process")
     ap.add_argument("--tag", default="mlp_torch", help="Model tag/prefix for filenames")
-    ap.add_argument("--splits", type=int, default=2, help="Number of folds")
-    ap.add_argument("--seed", type=int, default=42, help="Random state")
+    ap.add_argument("--splits", type=int, default=None, help="Optional check against the saved fold count")
+    ap.add_argument("--seed", type=int, default=None, help="Optional check against the saved training seed")
     ap.add_argument("--channels", nargs="+", default=["hadhad", "lephad"])
     ap.add_argument("--device", default=None, help="cuda or cpu (default: auto)")
     ap.add_argument("--batch-size", type=int, default=8192)
@@ -2070,17 +2074,9 @@ def main():
 
     for channel in args.channels:
         ch_model_dir = Path(args.model_dir).resolve() / channel
-        meta_files = sorted(ch_model_dir.glob(f"{args.tag}_fold*.json"))
-        if meta_files:
-            with open(meta_files[0]) as jf:
-                meta = json.load(jf)
-            feats = list(meta["features"])
-        else:
-            if feat_cfg is None:
-                raise FileNotFoundError(f"No model metadata found in {ch_model_dir} and no features config provided.")
-            if "channels" not in feat_cfg or channel not in feat_cfg["channels"]:
-                raise KeyError(f"Channel '{channel}' not found in {args.features_config}")
-            feats = list(feat_cfg["channels"][channel]["features"])
+        run = load_run(ch_model_dir, args.tag)
+        feats = list(run["features"])
+        seed, n_splits = run["seed"], run["n_splits"]
         weighted_mmc_idx = feats.index("weighted_MMC_para_perp_vispTcal") if "weighted_MMC_para_perp_vispTcal" in feats else None
         mmc_family_idx = find_feature_family_indices(feats, "mmc")
         mmc_family_feature_names = [feats[idx] for idx in mmc_family_idx]
@@ -2089,15 +2085,10 @@ def main():
             Path(args.indir).resolve(), channel, feats, args.signal
         )
         w_norm = normalise_per_process_weights(proc_names, w_xsec)
-        splits = weighted_stratified_kfold_indices(
-            y=y, proc=proc_names, w=w_norm, n_splits=args.splits, random_state=args.seed
-        )
+        splits, selections = verified_splits(
+            ch_model_dir, run, files, channel=channel, features=feats,
+            signal_key=args.signal, seed=args.seed, n_splits=args.splits)
 
-        best_params_path = ch_model_dir / f"{args.tag}_best_params.json"
-        with open(best_params_path) as jf:
-            best_params = json.load(jf)
-
-        rng = np.random.default_rng(args.seed)
         fold_metrics = {"train": [], "val": [], "test": []}
         importance_per_fold = []
         oof_y = []
@@ -2119,11 +2110,11 @@ def main():
         for fold, (tr_idx, te_idx) in enumerate(splits, start=1):
             model_name = f"{args.tag}_fold{fold}"
             model, scaler = load_fold_model_and_scaler(
-                ch_model_dir, model_name, best_params, X.shape[1], device
+                ch_model_dir, model_name, X.shape[1], device
             )
 
-            tr_sel, ytr = make_balanced_train_selection(tr_idx, y, w_norm, rng)
-            tr_sel2, ytr2, va_sel, yva = split_train_val(tr_sel, ytr, best_params["val_frac"], rng)
+            tr_sel2, va_sel = selections[fold - 1]
+            ytr2, yva = y[tr_sel2], y[va_sel]
             train_indices_per_fold.append(np.asarray(tr_sel2, dtype=int))
 
             Xtr = scaler.transform(X[tr_sel2])
@@ -2176,7 +2167,7 @@ def main():
                 baseline, drops = permutation_importance(
                     model, Xte, y[te_idx], w_norm[te_idx], device, metric_fn,
                     n_repeats=args.perm_repeats, batch_size=args.batch_size,
-                    rng=np.random.default_rng(args.seed + fold),
+                    rng=np.random.default_rng(seed + fold),
                     feature_indices=feat_idx,
                 )
                 importance_per_fold.append({"baseline": baseline, "drops": drops, "feat_idx": feat_idx})
@@ -2194,7 +2185,7 @@ def main():
                         args.perm_metric,
                         n_repeats=args.perm_repeats,
                         batch_size=args.batch_size,
-                        rng=np.random.default_rng(args.seed + 1000 + fold),
+                        rng=np.random.default_rng(seed + 1000 + fold),
                         baseline_prob=yte_prob,
                     )
                     if mmc_payload is not None:
@@ -2205,8 +2196,8 @@ def main():
             "channel": channel,
             "features": feats,
             "files": [str(p) for p in files],
-            "splits": args.splits,
-            "seed": args.seed,
+            "splits": n_splits,
+            "seed": seed,
             "quick_mode": bool(args.quick),
             "metrics": {
                 "train": aggregate_metrics([{
@@ -2261,7 +2252,7 @@ def main():
         with open(ch_out / "training_composition.json", "w") as jf:
             json.dump({
                 "channel": channel,
-                "n_folds": args.splits,
+                "n_folds": n_splits,
                 "weight_definition": "train_weighted_yield uses normalise_per_process_weights(abs(weight_xsec)) on the actual training subset after the train/val split, averaged over folds",
                 "rows": [{
                     "process_label": row["process_label"],
@@ -2491,7 +2482,7 @@ def main():
                             shap_diag_features,
                             process_feature_rows,
                         ) = collect_fold_shap_diagnostics(
-                            ch_model_dir, args.tag, best_params,
+                            ch_model_dir, args.tag,
                             X, y, proc_names, w_norm, splits, feats, device,
                             target_feature="weighted_MMC_para_perp_vispTcal",
                         )
