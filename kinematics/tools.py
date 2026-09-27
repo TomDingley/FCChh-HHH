@@ -212,16 +212,48 @@ def _scalar(tree, var):
         # Already a flat array
         return arr
 
+def _flat_numeric(arr, label: str) -> np.ndarray:
+    """Convert numeric data without silently losing missing or non-finite values."""
+    arr = ak.Array(arr)
+    if any(ak.any(ak.is_none(arr, axis=axis), axis=None) for axis in range(arr.ndim)):
+        raise ValueError(f"{label} contains missing values")
+    values = np.asarray(ak.flatten(arr, axis=None), dtype=float)
+    invalid = ~np.isfinite(values)
+    if np.any(invalid):
+        first = int(np.flatnonzero(invalid)[0])
+        raise ValueError(f"{label} contains {np.count_nonzero(invalid)} non-finite values; first flattened index: {first}")
+    return values
+
+
 def numeric(arr: ak.Array) -> np.ndarray:
-    """Convert an Awkward array to a clean NumPy array of finite floats."""
-    flat = ak.flatten(arr, axis=None)
-    num = np.asarray(flat, dtype=float)
-    return num[np.isfinite(num)]
+    """Convert an Awkward array to finite floats, raising on invalid values."""
+    return _flat_numeric(arr, "numeric array")
+
+
+def aligned_numeric(*arrays, labels=None) -> tuple[np.ndarray, ...]:
+    """Broadcast related columns and raise if any entry is invalid."""
+    if not arrays:
+        return ()
+    if len({len(values) for values in arrays}) != 1:
+        raise ValueError("Related columns have different event counts.")
+    if labels is not None and len(labels) != len(arrays):
+        raise ValueError("Column labels do not match the number of arrays.")
+    values = [ak.Array(values) for values in arrays]
+    values = ak.broadcast_arrays(*values)
+    return tuple(_flat_numeric(values, labels[index] if labels is not None else f"column {index}")
+                 for index, values in enumerate(values))
+
+
+def load_numeric_columns(tree, names, mask):
+    """Read related branches with a common event selection."""
+    names = list(dict.fromkeys(names))
+    values = aligned_numeric(*(tree[name].array(library="ak")[mask] for name in names), labels=names)
+    return dict(zip(names, values))
 
 # --- Weighting Function ---
 import numpy as np
 
-# EFT basis definition (shared between helpers below)
+#  basis definition 
 BASIS_POINTS = [
     (0, 0),
     (1, -1),
@@ -270,12 +302,12 @@ def evaluate_weights_from_moments(k3, k4, moments):
 
 def get_weights(k3, k4, weight_dict):
     """
-    Compute per-event reweighting factors for given EFT couplings (k3, k4),
+    Compute per-event reweighting factors for given  couplings (k3, k4),
     using named event weight branches. Normalises to SM (k3=1, k4=1).
 
     Parameters:
-    - k3, k4: EFT coupling values
-    - weight_dict: dict of arrays (one per named EFT weight leaf).
+    - k3, k4: coupling values
+    - weight_dict: dict of arrays
       Keys must match the expected basis order.
 
     Returns:
@@ -293,13 +325,7 @@ def _load_weights_with_mask(ttree, selection=None):
     if selection:
         mask = build_mask_from_selection(ttree, selection)
         weight_dict = {k: arr[mask] for k, arr in weight_dict.items()}
-    weight_dict = {k: ak.to_numpy(arr) for k, arr in weight_dict.items()}
-
-    finite = np.ones(len(next(iter(weight_dict.values()))), dtype=bool)
-    for arr in weight_dict.values():
-        finite &= np.isfinite(arr)
-    weight_dict = {k: arr[finite] for k, arr in weight_dict.items()}
-
+    weight_dict = {k: _flat_numeric(arr, k) for k, arr in weight_dict.items()}
     return weight_dict
 
 def compute_xsec_grid(root_path, k3_vals, k4_vals, tree="events", selection=None):
@@ -408,14 +434,14 @@ def plot_xsec_comparison(
     )
 
 def _parse_args():
-    ap = argparse.ArgumentParser(description="Plot EFT cross-section contours and slices.")
+    ap = argparse.ArgumentParser(description="Plot cross-section contours and slices.")
     ap.add_argument("--file-a", required=True, help="Path to COM A ROOT file")
     ap.add_argument("--file-b", required=True, help="Path to COM B ROOT file")
     ap.add_argument("--label-a", default="COMA", help="Label for COM A")
     ap.add_argument("--label-b", default="COMB", help="Label for COM B")
     ap.add_argument("--tree", default="events", help="TTree name")
     ap.add_argument("--selection", default=None, help="Optional selection string")
-    ap.add_argument("--outdir", default="eft_xsec", help="Output directory")
+    ap.add_argument("--outdir", default="reweight_xsec", help="Output directory")
     ap.add_argument("--k3-min", type=float, default=-20.0)
     ap.add_argument("--k3-max", type=float, default=20.0)
     ap.add_argument("--k4-min", type=float, default=-200.0)
