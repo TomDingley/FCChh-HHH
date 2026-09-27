@@ -6,7 +6,7 @@ from pathlib import Path
 
 from config import XLIM_MAP, N_BINS_1D, OVERLAY_PAIRS, LUMINOSITY_PB
 from aesthetics import LABEL_MAP, banner, process_labels, banner_heatmaps
-from tools import numeric
+from tools import numeric, aligned_numeric
 
 
 def save_1d_hist(ax, outpath, comment):
@@ -25,10 +25,10 @@ def plot_1d_histograms(proc, tree, mask, outdir, comment, channel):
     for leaf in tree.keys():
         if "/" in leaf:
             continue
-        arr = numeric(tree[leaf].array(library="ak")[mask])
+        arr, aligned_weight = aligned_numeric(tree[leaf].array(library="ak")[mask], weight)
         if arr.size == 0:
             continue
-        counts, edges = np.histogram(arr, bins=N_BINS_1D, weights=weight)
+        counts, edges = np.histogram(arr, bins=N_BINS_1D, weights=aligned_weight)
         counts = ak.to_numpy(counts).astype(float)
         ax = plt.subplots(figsize=(6, 5))[1]
         x = np.append(edges[:-1], edges[-1])

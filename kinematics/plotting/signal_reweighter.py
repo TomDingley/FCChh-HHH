@@ -10,7 +10,7 @@ from config import XLIM_MAP, N_BINS_1D, OVERLAY_PAIRS
 from aesthetics import LABEL_MAP, process_labels, process_colours, banner,  banner_heatmaps
 from typing import Dict
 from config import processes, SIGNAL, BACKGROUNDS, SELECTION, SKIP_VARS
-from tools import get_weights, numeric, build_mask_from_selection, BASIS_KEYS, basis_funcs, build_moments
+from tools import get_weights, numeric, build_mask_from_selection, BASIS_KEYS, basis_funcs, build_moments, load_numeric_columns
 from aesthetics import LABEL_MAP
 
 from matplotlib.colors import Normalize, TwoSlopeNorm
@@ -46,27 +46,9 @@ def compare_signal_reweight_points(
         ]
 
         # Load masked arrays
-        arr_all_raw = tree[var].array(library="ak")[mask]
-        arr_all = numeric(arr_all_raw)
-
-        # Load each weight branch with mask
-        weight_dict = {}
-        for key in basis_keys:
-            weight_arr = tree[key].array(library="np")[mask]
-            if len(weight_arr) != len(arr_all):
-                print(f"[!] Skipping {key}: mismatch with {var} length ({len(weight_arr)} vs {len(arr_all)})")
-                return
-            weight_dict[key] = weight_arr
-
-        # Ensure all weight arrays have same length as observable
-        for w in weight_dict.values():
-        
-            if len(arr_all) != len(w):
-                return
-        min_len = min(len(arr_all), *(len(w) for w in weight_dict.values()))
-        arr_all = arr_all[:min_len]
-        for key in weight_dict:
-            weight_dict[key] = weight_dict[key][:min_len]
+        columns = load_numeric_columns(tree, [var, *basis_keys], mask)
+        arr_all = columns[var]
+        weight_dict = {key: columns[key] for key in basis_keys}
 
         # Apply range cut
         if var in XLIM_MAP:
@@ -170,14 +152,15 @@ def heatmap_signal_reweight_efficiency(
         mask = build_mask_from_selection(tree, selection)
 
         # Load isRecoMatched and weights
-        isRecoMatched = tree["isRecoMatchedHHH"].array(library="np")[mask]
 
         basis_keys = [
             "weight_k3m1_k4m1", "weight_k30_k4m2", "weight_k3m2_k40",
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {k: tree[k].array(library="np")[mask] for k in basis_keys}
+        columns = load_numeric_columns(tree, ["isRecoMatchedHHH", *basis_keys], mask)
+        isRecoMatched = columns["isRecoMatchedHHH"]
+        weight_dict = {k: columns[k] for k in basis_keys}
 
     # --- Compute efficiency heatmap ---
     heatmap = np.zeros((len(k3_grid), len(k4_grid)))
@@ -757,14 +740,15 @@ def heatmap_signal_reweight_mean(
         mask = build_mask_from_selection(tree, selection)
 
         # Load observable and EFT basis weights
-        arr_all = numeric(tree[var].array(library="ak")[mask])
 
         basis_keys = [
             "weight_k3m1_k4m1", "weight_k30_k4m2", "weight_k3m2_k40",
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {k: tree[k].array(library="np")[mask] for k in basis_keys}
+        columns = load_numeric_columns(tree, [var, *basis_keys], mask)
+        arr_all = columns[var]
+        weight_dict = {k: columns[k] for k in basis_keys}
 
         # Apply range cut
         if var in XLIM_MAP:
@@ -845,14 +829,15 @@ def heatmap_signal_reweight_mean_with_slices(
         mask = build_mask_from_selection(tree, selection)
 
         # Load observable and Reweighted basis weights
-        arr_all = numeric(tree[var].array(library="ak")[mask])
 
         basis_keys = [
             "weight_k3m1_k4m1", "weight_k30_k4m2", "weight_k3m2_k40",
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {k: tree[k].array(library="np")[mask] for k in basis_keys}
+        columns = load_numeric_columns(tree, [var, *basis_keys], mask)
+        arr_all = columns[var]
+        weight_dict = {k: columns[k] for k in basis_keys}
 
         # Apply plotting range
         if var in XLIM_MAP:

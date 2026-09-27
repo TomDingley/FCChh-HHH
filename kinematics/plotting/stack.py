@@ -6,7 +6,7 @@ import awkward as ak
 
 from config import XLIM_MAP, N_BINS_1D, SIGNAL, BACKGROUNDS, LUMINOSITY_PB, SELECTION, HADHAD
 from aesthetics import LABEL_MAP, process_labels, process_colours, banner, channel_colors, channel_labels
-from tools import  numeric, get_weights, build_mask_from_selection
+from tools import numeric, get_weights, build_mask_from_selection, aligned_numeric, load_numeric_columns
 
 import matplotlib.gridspec as gridspec
     
@@ -24,14 +24,16 @@ def stack_plot_weight(
     if trees is not None and SIGNAL in trees:
         t_sig = trees[SIGNAL]
         m_sig = masks[SIGNAL] if masks is not None and SIGNAL in masks else build_mask_from_selection(t_sig, selection)
-        sig = numeric(t_sig[var].array(library="ak")[m_sig])
-        w_sig = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig]) * LUMINOSITY_PB
+        columns = load_numeric_columns(t_sig, [var, "weight_xsec"], m_sig)
+        sig = columns[var]
+        w_sig = columns["weight_xsec"] * LUMINOSITY_PB
     else:
         with uproot.open(files[SIGNAL]) as f_sig:
             t_sig = f_sig["events"]
             m_sig = build_mask_from_selection(t_sig, selection)
-            sig = numeric(t_sig[var].array(library="ak")[m_sig])
-            w_sig = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig]) * LUMINOSITY_PB
+            columns = load_numeric_columns(t_sig, [var, "weight_xsec"], m_sig)
+            sig = columns[var]
+            w_sig = columns["weight_xsec"] * LUMINOSITY_PB
 
     if sig.size == 0:
         return
@@ -60,8 +62,9 @@ def stack_plot_weight(
         if trees is not None and proc in trees:
             t = trees[proc]
             m_bkg = masks[proc] if masks is not None and proc in masks else build_mask_from_selection(t, selection)
-            arr = numeric(t[var].array(library="ak")[m_bkg])
-            weights = numeric(t["weight_xsec"].array(library="ak")[m_bkg]) * LUMINOSITY_PB
+            columns = load_numeric_columns(t, [var, "weight_xsec"], m_bkg)
+            arr = columns[var]
+            weights = columns["weight_xsec"] * LUMINOSITY_PB
             if arr.size == 0:
                 continue
             mask = (arr >= xmin) & (arr <= xmax)
@@ -78,8 +81,9 @@ def stack_plot_weight(
         with uproot.open(fp) as f_bkg:
             t = f_bkg["events"]
             m_bkg = build_mask_from_selection(t, selection)
-            arr = numeric(t[var].array(library="ak")[m_bkg])
-            weights = numeric(t["weight_xsec"].array(library="ak")[m_bkg]) * LUMINOSITY_PB         
+            columns = load_numeric_columns(t, [var, "weight_xsec"], m_bkg)
+            arr = columns[var]
+            weights = columns["weight_xsec"] * LUMINOSITY_PB
             if arr.size == 0:
                 continue
             mask = (arr >= xmin) & (arr <= xmax)
@@ -278,12 +282,19 @@ def overlay_plot(
         if trees is not None and proc in trees:
             tree = trees[proc]
             mask = masks[proc] if masks is not None and proc in masks else build_mask_from_selection(tree, selection)
-            arr = numeric(tree[var].array(library="ak")[mask])
+            raw = tree[var].array(library="ak")[mask]
+            if normalise and "weight_xsec" in tree.keys():
+                arr, weights_ratio = aligned_numeric(raw, tree["weight_xsec"].array(library="ak")[mask])
+                weights_ratio *= LUMINOSITY_PB
+            else:
+                arr, = aligned_numeric(raw)
+                weights_ratio = np.ones_like(arr)
             mask_x = None
 
             if var in XLIM_MAP:
                 mask_x = (arr >= xmin) & (arr <= xmax)
                 arr = arr[mask_x]
+                weights_ratio = weights_ratio[mask_x]
 
             if arr.size == 0:
                 continue
@@ -334,12 +345,6 @@ def overlay_plot(
 
             if normalise:
                 # Ratio uses weighted yields to be representative, top panel stays unweighted.
-                try:
-                    weights_ratio = numeric(tree["weight_xsec"].array(library="ak")[mask]) * LUMINOSITY_PB
-                    if mask_x is not None:
-                        weights_ratio = weights_ratio[mask_x]
-                except Exception:
-                    weights_ratio = np.ones_like(arr)
                 if len(arr) == len(weights_ratio):
                     counts_ratio, _ = np.histogram(arr, bins=edges, weights=weights_ratio)
                     counts_ratio_w2, _ = np.histogram(arr, bins=edges, weights=weights_ratio * weights_ratio)
@@ -357,12 +362,19 @@ def overlay_plot(
         with uproot.open(fp) as f:
             tree = f["events"]
             mask = build_mask_from_selection(tree, selection)
-            arr = numeric(tree[var].array(library="ak")[mask])
+            raw = tree[var].array(library="ak")[mask]
+            if normalise and "weight_xsec" in tree.keys():
+                arr, weights_ratio = aligned_numeric(raw, tree["weight_xsec"].array(library="ak")[mask])
+                weights_ratio *= LUMINOSITY_PB
+            else:
+                arr, = aligned_numeric(raw)
+                weights_ratio = np.ones_like(arr)
             mask_x = None
 
             if var in XLIM_MAP:
                 mask_x = (arr >= xmin) & (arr <= xmax)
                 arr = arr[mask_x]
+                weights_ratio = weights_ratio[mask_x]
 
             if arr.size == 0:
                 continue
@@ -413,12 +425,6 @@ def overlay_plot(
 
             if normalise:
                 # Ratio uses weighted yields to be representative, top panel stays unweighted.
-                try:
-                    weights_ratio = numeric(tree["weight_xsec"].array(library="ak")[mask]) * LUMINOSITY_PB
-                    if mask_x is not None:
-                        weights_ratio = weights_ratio[mask_x]
-                except Exception:
-                    weights_ratio = np.ones_like(arr)
                 if len(arr) == len(weights_ratio):
                     counts_ratio, _ = np.histogram(arr, bins=edges, weights=weights_ratio)
                     counts_ratio_w2, _ = np.histogram(arr, bins=edges, weights=weights_ratio * weights_ratio)
@@ -808,8 +814,9 @@ def normalised_slice_plot(
             mask_base = build_mask_from_selection(tree, selection)
 
             try:
-                arr_var_all = numeric(tree[var].array(library="ak")[mask_base])
-                arr_slice_all = numeric(tree[slicer].array(library="ak")[mask_base])
+                columns = load_numeric_columns(tree, [var, slicer], mask_base)
+                arr_var_all = columns[var]
+                arr_slice_all = columns[slicer]
             except Exception:
                 plt.close(fig)
                 continue
