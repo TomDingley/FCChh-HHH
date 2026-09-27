@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tools import aligned_numeric, load_numeric_columns
 
 import argparse
 import csv
@@ -118,9 +119,10 @@ def _load_histograms(
     with uproot.open(fp_sig) as f_sig:
         tree = f_sig["events"]
         mask = build_mask_from_selection(tree, selection)
-        arr = numeric(tree[var].array(library="ak")[mask])
-        mlp = numeric(tree[mlp_var].array(library="ak")[mask])
-        w_sig = numeric(tree["weight_xsec"].array(library="ak")[mask]) * LUMINOSITY_PB
+        columns = load_numeric_columns(tree, [var, mlp_var, "weight_xsec"], mask)
+        arr = columns[var]
+        mlp = columns[mlp_var]
+        w_sig = columns["weight_xsec"] * LUMINOSITY_PB
 
     if mlp_cut is not None:
         keep = mlp > mlp_cut
@@ -145,9 +147,10 @@ def _load_histograms(
                 continue
             tree = f_bkg["events"]
             mask = build_mask_from_selection(tree, selection)
-            arr = numeric(tree[var].array(library="ak")[mask])
-            mlp = numeric(tree[mlp_var].array(library="ak")[mask])
-            w_bkg = numeric(tree["weight_xsec"].array(library="ak")[mask]) * LUMINOSITY_PB
+            columns = load_numeric_columns(tree, [var, mlp_var, "weight_xsec"], mask)
+            arr = columns[var]
+            mlp = columns[mlp_var]
+            w_bkg = columns["weight_xsec"] * LUMINOSITY_PB
 
         if mlp_cut is not None:
             keep = mlp > mlp_cut

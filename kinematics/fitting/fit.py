@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import uproot
-from tools import numeric, build_mask_from_selection
+from tools import numeric, build_mask_from_selection, load_numeric_columns, BASIS_KEYS
 from config import SIGNAL, BACKGROUNDS, SELECTION, N_BINS_1D, XLIM_MAP, LUMINOSITY_PB
 from scipy.optimize import minimize_scalar
 from aesthetics import process_labels, process_colours, LABEL_MAP, banner, banner_heatmaps
@@ -23,7 +23,8 @@ def compute_asimov_significance(
         t_sig = f_sig["events"]
         selection = SELECTION[channel]
         m_sig = build_mask_from_selection(t_sig, selection)
-        sig = numeric(t_sig[var].array(library="ak")[m_sig])
+        columns = load_numeric_columns(t_sig, [var, "weight_xsec", *BASIS_KEYS], m_sig)
+        sig = columns[var]
         if sig.size == 0:
             print(f"[!] No signal entries for {var}")
             return np.nan
@@ -40,12 +41,9 @@ def compute_asimov_significance(
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {
-            key: numeric(t_sig[key].array(library="ak")[m_sig])
-            for key in basis_keys
-        }
+        weight_dict = {key: columns[key] for key in basis_keys}
         weights = get_weights(k3, k4, weight_dict)
-        xsec_weight = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig]) * LUMINOSITY_PB
+        xsec_weight = columns["weight_xsec"] * LUMINOSITY_PB
         weights *= xsec_weight
         h_sig, _ = np.histogram(sig, bins=edges, weights=weights)
 
@@ -61,8 +59,9 @@ def compute_asimov_significance(
             t_bkg = f_bkg["events"]
             arr_raw = t_bkg[var].array(library="ak")
             m_bkg = build_mask_from_selection(t_bkg, selection)
-            arr = numeric(arr_raw[m_bkg])
-            weight_bkg = numeric(t_bkg["weight_xsec"].array(library="ak")[m_bkg]) * LUMINOSITY_PB
+            columns = load_numeric_columns(t_bkg, [var, "weight_xsec"], m_bkg)
+            arr = columns[var]
+            weight_bkg = columns["weight_xsec"] * LUMINOSITY_PB
             if arr.size == 0:
                 continue
             h_bkg, _ = np.histogram(arr, bins=edges, weights=weight_bkg)
@@ -144,12 +143,11 @@ def compute_exclusion_significance_from_SM(
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1",
         ]
-        weight_dict = {
-            key: numeric(t_sig[key].array(library="ak")[m_sig]) for key in basis_keys
-        }
+        columns = load_numeric_columns(t_sig, ["weight_xsec", *basis_keys], m_sig)
+        weight_dict = {key: columns[key] for key in basis_keys}
 
         # base xsec weight
-        w_xsec_sig = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig]) * LUMINOSITY_PB
+        w_xsec_sig = columns["weight_xsec"] * LUMINOSITY_PB
 
         # SM and NP total signal yields
         w_SM = get_weights(1.0, 1.0, weight_dict) * w_xsec_sig
@@ -300,7 +298,6 @@ def plot_k3k4_limit_contours(npz_file: Path, outdir: Path, channel: str):
     k4_vals = sig_data["k4"]
     Z_vals = sig_data["Z"]
     K3, K4 = np.meshgrid(k3_vals, k4_vals, indexing="ij")
-
 
     fig, ax = plt.subplots(figsize=(7, 6))
 
@@ -490,7 +487,8 @@ def compute_bonly_asimov_significance(
     with uproot.open(files[SIGNAL]) as f_sig:
         t_sig = f_sig["events"]
         m_sig = build_mask_from_selection(t_sig, selection)
-        sig = numeric(t_sig[var].array(library="ak")[m_sig])
+        columns = load_numeric_columns(t_sig, [var, "weight_xsec", *BASIS_KEYS], m_sig)
+        sig = columns[var]
         if sig.size == 0:
             print(f"[!] No signal entries for {var}")
             return np.nan
@@ -507,12 +505,9 @@ def compute_bonly_asimov_significance(
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {
-            key: numeric(t_sig[key].array(library="ak")[m_sig])
-            for key in basis_keys
-        }
+        weight_dict = {key: columns[key] for key in basis_keys}
         weights = get_weights(k3, k4, weight_dict)
-        xsec_weight = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig]) * LUMINOSITY_PB
+        xsec_weight = columns["weight_xsec"] * LUMINOSITY_PB
         weights *= xsec_weight
         h_sig, _ = np.histogram(sig, bins=edges, weights=weights)
 
@@ -528,8 +523,9 @@ def compute_bonly_asimov_significance(
             t_bkg = f_bkg["events"]
             arr_raw = t_bkg[var].array(library="ak")
             m_bkg = build_mask_from_selection(t_bkg, selection)
-            arr = numeric(arr_raw[m_bkg])
-            weight_bkg = numeric(t_bkg["weight_xsec"].array(library="ak")[m_bkg]) * LUMINOSITY_PB
+            columns = load_numeric_columns(t_bkg, [var, "weight_xsec"], m_bkg)
+            arr = columns[var]
+            weight_bkg = columns["weight_xsec"] * LUMINOSITY_PB
             if arr.size == 0:
                 continue
             h_bkg, _ = np.histogram(arr, bins=edges, weights=weight_bkg)
@@ -596,11 +592,9 @@ def plot_signal_yield_morphing_grid(
             "weight_k30_k4m1", "weight_k3m1_k40", "weight_k3m2_k4m1",
             "weight_k3m1_k4m2", "weight_k3m0p5_k4m1", "weight_k3m1p5_k4m1"
         ]
-        weight_dict = {
-            key: numeric(t_sig[key].array(library="ak")[m_sig])
-            for key in basis_keys
-        }
-        xsec_weight = numeric(t_sig["weight_xsec"].array(library="ak")[m_sig])
+        columns = load_numeric_columns(t_sig, ["weight_xsec", *basis_keys], m_sig)
+        weight_dict = {key: columns[key] for key in basis_keys}
+        xsec_weight = columns["weight_xsec"]
         base_weights = {k: v for k, v in weight_dict.items()}
 
     # --- Prepare grid ---
