@@ -49,6 +49,42 @@ source setup.sh
 
 ## Quick start
 
+### Compare two HHH ntuple implementations
+
+For two ntuples produced from the same signal ROOT input, compare the shared
+event distributions and MMC values without requiring `weight_xsec`:
+
+```bash
+python compare_ntuples.py \
+  --repository /path/to/repository_ntuple.root \
+  --external /path/to/external_ntuple.root \
+  --outdir /path/to/comparison_plots
+```
+
+This writes individual PNG histograms, a combined `comparison.pdf`, and a
+`summary.csv` with event-level differences and non-finite counts. It draws both
+all-event and exact 4b2tau selections. Ranked b-jet and tau pT values are only
+used when that object exists; MMC mass plots require at least two reconstructed
+tau jets. Both samples must contain the same events in the same order.
+
+To compare two independently generated HHH samples with different nominal
+couplings, use unit-normalized shapes instead:
+
+```bash
+python compare_signal_nominals.py \
+  --default /path/to/c3_2_d4_3_ntuple.root \
+  --sm /path/to/c3_0_d4_0_ntuple.root \
+  --outdir /path/to/nominal_comparison_plots
+```
+
+This plots truth and reconstructed features for all events and exact 4b2tau
+events. The default sample is a black histogram, the independently generated
+SM sample is shown as red points with counting errors, and a muted blue curve
+reweights the default events to the SM point using their nine LHE weights.
+The lower panel shows differences in cumulative event fraction, which make
+shape shifts easier to see. The CSV records event counts, non-finite values,
+and shape differences. Both input ntuples must contain 1,000 events.
+
 ### Bulk plots and summaries
 To get started, I've hard-coded the ntuple path on the Oxford data disk such that:
 ```bash
