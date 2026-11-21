@@ -5,3 +5,7 @@
 [submodule "FCCAnalyses"]
 	path = FCCAnalyses
 	url = https://github.com/TomDingley/FCCAnalyses.git
+[submodule "POWHEG-BOX-V2"]
+	path = POWHEG-BOX-V2
+	url = https://github.com/TomDingley/FCChh-HHH.git
+	branch = powheg-core
