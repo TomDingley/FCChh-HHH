@@ -1,0 +1,15 @@
+{
+  "channels": {
+    "bbaa": {
+      "features":[
+            "m_bb", "m_yy", "m_hh", "dphi_bb", "dphi_yy",
+            "dR_hh", "dR_yy", "dR_bb",
+            "dphi_bb", "dphi_yy", "dphi_hh",
+            "deta_bb", "deta_yy", "deta_hh",
+            "cos_theta_yy", "cos_theta_bb",
+            "max_dr_yb", "min_dr_yb",
+            "pT_hbb", "pT_hyy"
+        ]
+      }
+    }
+}
