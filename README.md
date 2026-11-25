@@ -11,7 +11,7 @@ cd FCChh-HHH
 
 ---
 
-## Project overview
+##  overview
 
 **Goal:** constrain Higgs self-couplings (e.g. $\kappa_3$, $\kappa_4$) using $HHH$ at the FCC-hh, with an analysis pipeline spanning:
 
@@ -19,8 +19,8 @@ cd FCChh-HHH
 
 | Step | Directory | Status | Notes |
 |---:|---|---|---|
-| 1 | `EventProducer` | WIP | Event generation, showering, Delphes |
-| 2 | `FCCAnalyses` | WIP | Ntuple production |
+| 1 | `EventProducer` | Up to date | Event generation, showering, Delphes |
+| 2 | `FCCAnalyses` | Up to date | Ntuple production |
 | 3 | `kinematics` | Up to date | Plots & misc functions.  |
 | 4 | `ML` | Up to date | Training, validation, scoring |
 | 5 | `TRExFitter` | Up to date | Statistical interpretation & results |
@@ -36,65 +36,75 @@ There are READMEs in each directory with instructions:
 
 If you're using the repository with NTuples already generated, all you need are the kinematics, ML and TRExFitter directories.
 
-## Run production
-
-The commands are collected in [`HHH/`](HHH/README.md). Set your software paths
-in `EventProducer/config/param_FCChh.py`, build this checkout's FCCAnalyses, and
-edit `HHH/settings.sh` for the process list, output directories and event counts.
-
-```bash
-bash HHH/local_test.sh                 # Ten fresh signal events, through ntuples; no submission
-bash HHH/submit_lhe.sh --dry-run        # Preview generation for the six processes
-bash HHH/submit_reco.sh --dry-run       # Preview reconstruction
-bash HHH/submit_ntuples.sh --dry-run    # Preview native fccanalysis submit commands
-```
-
-Remove `--dry-run` to submit. Run each stage only after the previous jobs finish.
-After all ntuples finish, run `bash HHH/prepare_ntuples.sh` to merge them and
-create the `weight_xsec` inputs under `HHH/output/weighted/`.
-The [HHH instructions](HHH/README.md) give the minimum setup, output paths and
-settings. HHH includes MadSpin and nine reweights; backgrounds retain their
-event weight. These scripts use the existing EventProducer and FCCAnalyses
-submission machinery.
-
-## Make and run the 100-event LHE smoke test
-
-To generate **fresh** LHE events for all six processes on HTCondor, including
-larger runs split into at most 10,000 events per file, follow the
-[EventProducer Condor instructions](EventProducer/hhh/README.md).
-
-The commands below extract the first 100 complete events from one existing production LHE file for each of HHH, ttbb, ttZ, ttH, tttt and ZZZ. The HHH file retains its nine LHE reweights. You need read access to the production LHE directory shown under **Available Inputs** below, a Key4hep installation, and a built `DelphesPythia8_EDM4HEP` executable. Run these commands from the repository root:
-
-```bash
-source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2026-04-08
-python3 tests/lhe_smoke/make_fixtures.py \
-  --source-root /data/atlas/users/dingleyt/FCChh/LHE/lhe
-python3 tests/lhe_smoke/run.py \
-  --delphes /data/atlas02/users/dingleyt/FCChh/key4/k4SimDelphes_upstream_v00_08/install/bin/DelphesPythia8_EDM4HEP
-```
-
-The first command creates six compressed LHE files in `tests/lhe_smoke/inputs/`. The second showers and reconstructs each sample with its process-specific Pythia card, then checks that each ROOT file contains 100 events, finite nominal weights, and HHH reweights matching the LHE. Its ROOT files and per-process logs go to `tests/lhe_smoke/output/`. Both directories are ignored by Git. To rerun just the checks, use `python3 tests/lhe_smoke/run.py --check-only`. To regenerate the samples, choose a fresh `--output-dir` for the first command and pass that directory as `--input-dir` to the second; choose a fresh ROOT `--output-dir` too. Neither script overwrites existing output.
-
-The background Pythia cards in `tests/lhe_smoke/cards/` come from the corresponding original event-production cards. The test exercises LHE extraction, Pythia, Delphes and event-weight preservation. It does not run ntuple production, ML training or statistical fits; their production configurations require larger samples and separate inputs. For those stages, follow the component READMEs.
-
-For a larger signal-only input to compare ntuple implementations, replace the first two test commands with:
-
-```bash
-python3 tests/lhe_smoke/make_fixtures.py \
-  --source-root /data/atlas/users/dingleyt/FCChh/LHE/lhe \
-  --process mgp8_pp_hhh_84TeV --events 1000 \
-  --output-dir tests/lhe_smoke/inputs/1000
-python3 tests/lhe_smoke/run.py \
-  --process mgp8_pp_hhh_84TeV --events 1000 \
-  --input-dir tests/lhe_smoke/inputs/1000 \
-  --output-dir tests/lhe_smoke/output/1000 \
-  --delphes /data/atlas02/users/dingleyt/FCChh/key4/k4SimDelphes_upstream_v00_08/install/bin/DelphesPythia8_EDM4HEP
-```
-
 
 Steps 1 and 2 are by far the most intensive and full production of Delphes ROOT files should take $\mathcal{O}(1-2)$ days on the batch system and a similar amount of time for the NTuple production (MMC is computationally very slow here). The last three are doable within a day, depending on the number of Optuna hyperparameter scans you choose to run. 
 
 
+## Testing the repository
+The repo is quite large, but there are a few smaller jobs that can be run to ensure the repository runs all of the  analysis.
+
+### Event Generation
+First, we setup the EventProducer repository. Run these commands from the top of this repo. Ideally, software paths in `EventProducer/config/param_FCChh.py` should point to your MG5, LHAPDF and Delphes installations - but using mine is also fine.
+
+```bash
+source EventProducer/init.sh
+```
+For a small local test, run:
+
+```bash
+bash HHH/local_test.sh
+```
+
+This makes ten HHH events, including reweighting and MadSpin, runs Delphes and makes the ntuples. Outputs are in `HHH/local_test/`. To repeat it, choose a new `test_dir` in `HHH/settings.sh`.
+
+### Submitting jobs
+For example, to submit one 100-event HHH signal job (you can use --dry-run before to check it's setup correctly):
+
+```bash
+python3 EventProducer/bin/run.py --FCChh --LHE --send --condor \
+  --typelhe mg --process mg_pp_hhh_84TeV -N 1 -n 100
+```
+
+Once the LHE job has finished, check the output and submit Delphes:
+
+```bash
+python3 EventProducer/bin/run.py --FCChh --LHE --check --force \
+  --process mg_pp_hhh_84TeV
+python3 EventProducer/bin/run.py --FCChh --reco --send --condor \
+  --type lhep8 --process mg_pp_hhh_84TeV --prodtag fcc_v07 --detector II \
+  -N 1 -n 100 -q workday
+```
+
+
+The LHEs and Delphes files go into `EventProducer/LHE/` and `EventProducer/DelphesEvents/`. The ntuples go into `ntuples/`. 
+
+### Ntuples
+Build the FCCAnalyses code:
+
+```bash
+source FCCAnalyses/setup.sh
+cmake -S FCCAnalyses -B FCCAnalyses/build \
+  -DBUILD_TESTING=ON \
+  -DCMAKE_INSTALL_PREFIX="$PWD/FCCAnalyses/install"
+fccanalysis build -j 4
+```
+
+
+
+Once Delphes has finished, run the ntuples locally on the first signal file (up to 100 events):
+
+```bash
+fccanalysis run HHH/ntuples.py --test --nevents 100 --output ntuples/local_test.root
+```
+
+Or submit the ntuples:
+
+```bash
+mkdir -p ntuples/log/mgp8_pp_hhh_84TeV
+fccanalysis submit HHH/ntuples.py
+```
+
+Some strange segfaults at the moment, which I'm working to try and fix at the moment...
 ---
 
 ## Available Inputs
